@@ -91,12 +91,8 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_cast({:receiveHello, n_id}, state) do
-    # SendNeighborMap(new_neighbor, N)
-    # “When we proceed to fill in an empty entry at N, we know from our algorithm the range of objects whose surrogate route were moved from”  [N+1 entry location]
-    # “We can then explicitly delete those entries”
-    # “republish those objects”
-    # “establishing new surrogate routes which account for the new inserted node.”
-    {:noreply, state}
+    new_state = placeInNeighborMap(n_id, state)
+    {:noreply, new_st(ate)}
   end
 
   # Server
@@ -212,6 +208,19 @@ defmodule TAPNODE do
   def routeNode(N, Exact) do
     # A node N has a neighbor map with multiple levels, where each level contains links to nodes matching a prefix up to a digit position in the ID, and contains a number of entries equal to the ID’s base.
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
+  end
+
+  def placeInNeighborMap(n_id, state) do
+    new_state = state
+
+    # Notified nodes have the option of measuring distance to N, and if appropriate, replacing an existing neighbor entry with N.
+    # As nodes receive the message, they add N to their routing tables and transfer references of locally rooted pointers as necessary
+    # “When we proceed to fill in an empty entry at N, we know from our algorithm the range of objects whose surrogate route were moved from”  [N+1 entry location]
+    # “We can then explicitly delete those entries”
+    # “republish those objects”
+    # “establishing new surrogate routes which account for the new inserted node.”
+    # SendNeighborMap(new_neighbor, N)
+    new_state
   end
 end
 
