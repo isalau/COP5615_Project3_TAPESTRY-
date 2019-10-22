@@ -70,15 +70,70 @@ defmodule TAPNODE do
     new_id = sha |> Base.encode16()
     IO.inspect(new_id, label: "sha 1 output")
     numRequestToSend = numRequests
-    # neighborMap = empty list
+
+    neighborMap = [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z"
+    ]
+
     # ROUTER = ??
     # DYNAMIC_NODE_MANAGEMENT == ?
-    {:ok, _pid} = GenServer.start_link(__MODULE__, {index, new_id, numRequestToSend})
+    {:ok, _pid} = GenServer.start_link(__MODULE__, {index, new_id, numRequestToSend, neighborMap})
   end
 
   @impl true
-  def init({index, new_id, numRequestToSend}) do
-    {:ok, {index, new_id, numRequestToSend}}
+  def init({index, new_id, numRequestToSend, neighborMap}) do
+    {:ok, {index, new_id, numRequestToSend, neighborMap}}
   end
 
   @impl true
@@ -117,26 +172,70 @@ defmodule TAPNODE do
     # neighborMap = elem(state, 3)
     IO.inspect(new_id, label: "#{index}'s new_id is")
 
-    # OG = N as an object
-    # Objects routed by ID
+    # OG = N as an object; objects routed by ID
     gNode = contactGatewayNode(new_id, childPid)
     IO.inspect(gNode, label: "GatewayNode'd ID is")
     hNode = gNode
-    # For (i=0; H != NULL; i++) {
-    # Grab ith level NeighborMap_i from H;
-    # For (j=0; j<baseofID; j++) {
-    # //Fill in jth level of neighbor map
-    # Call updateYourNeighborMap()
-    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {
-    # neigh=sec.neighbor;
-    # sec.neighbors=neigh−>sec.neighbors(i,j);
-    # }
-    # }
-    # H = NextHop(i+1, new_id);
-    # } //terminate when null entry found
+    # i is the level; 41 levels because 40 digits in id ???
+    # For (i=0; hNode != NULL; i++) {}
+    # QUESTION: What should hNodeToRoute return?
+    hNodeToRoute(hNode, 0)
     # Route to current surrogate via new_id;
     # Move relevant pointers off current surrogate;
     # Call notifyNeighbors(surrogate(new_id))
+  end
+
+  # stopping condition --> last level
+  def hNodeToRoute(hNode, i) when i == 40 do
+    # Grab ith level NeighborMap_i from H;
+    # check if that level is empty --> terminate when null entry found
+    # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
+    # For (j=0; j<baseOfID; j++) {}
+    baseOfIDLoop(0)
+  end
+
+  def hNodeToRoute(hNode, i) do
+    state = :sys.get_state(hNode)
+    index = elem(state, 0)
+    new_id = elem(state, 1)
+    neighbor_map = elem(state, 3)
+    # Grab ith level NeighborMap_i from H;
+    # check if that level is empty --> terminate when null entry found
+    i_level_neighbor_map = Enum.at(neighbor_map, i)
+
+    if i_level_neighbor_map != nil do
+      IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+
+      # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
+      # For (j=0; j<baseOfID; j++) {}
+      baseOfIDLoop(0)
+      new_i = i + 1
+      hNodeNull(hNode, new_i)
+    end
+  end
+
+  # stopping condition --> last level
+  def baseOfIDLoop(j) when j == 40 do
+    # Fill in jth level of MY neighbor map
+    # updateYourNeighborMap()
+    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
+    # dist()
+    # H = NextHop(i+1, new_id);
+  end
+
+  def baseOfIDLoop(j) do
+    # Fill in jth level of MY neighbor map
+    # updateYourNeighborMap()
+    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
+    # dist()
+    # H = NextHop(i+1, new_id);
+    # new_j = j + 1
+    # baseOfIDLoop(new_j)
+  end
+
+  def dist() do
+    # neigh=sec.neighbor;
+    # sec.neighbors=neigh−>sec.neighbors(i,j);
   end
 
   def contactGatewayNode(new_id, childPid) do
@@ -150,15 +249,15 @@ defmodule TAPNODE do
       new_id = elem(state, 1)
 
       # Returns Node G id
-      nodeG = new_id
+      nodeG = neighbor_id
     else
       {_, neighbor_id, _, _} = Enum.at(children, 0)
       state = :sys.get_state(neighbor_id)
       index = elem(state, 0)
       new_id = elem(state, 1)
 
-      # Returns Node G id
-      nodeG = new_id
+      # Returns Node G state
+      nodeG = neighbor_id
     end
   end
 
