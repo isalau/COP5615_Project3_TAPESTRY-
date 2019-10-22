@@ -147,6 +147,7 @@ defmodule TAPNODE do
   @impl true
   def handle_cast({:receiveHello, n_id}, state) do
     new_state = placeInNeighborMap(n_id, state)
+    IO.puts("Received Hello")
     {:noreply, new_state}
   end
 
@@ -182,16 +183,36 @@ defmodule TAPNODE do
     hNodeToRoute(hNode, 0)
     # Route to current surrogate via new_id;
     # Move relevant pointers off current surrogate;
-    # Call notifyNeighbors(surrogate(new_id))
+    # Use surrogate(new_id) backptrs to notify nodes by flooding back levels to where surrogate routing first became necessary
+    routeToCurrentSurrogate(hNode)
+  end
+
+  def contactGatewayNode(new_id, childPid) do
+    children = DynamicSupervisor.which_children(TAPESTRY)
+    # get a node from supervisor that is not yourself--> surrogate root
+    {_, neighbor_id, _, _} = Enum.at(children, 1)
+
+    if neighbor_id != childPid do
+      state = :sys.get_state(neighbor_id)
+      index = elem(state, 0)
+      new_id = elem(state, 1)
+
+      # Returns Node G id
+      nodeG = neighbor_id
+    else
+      {_, neighbor_id, _, _} = Enum.at(children, 0)
+      state = :sys.get_state(neighbor_id)
+      index = elem(state, 0)
+      new_id = elem(state, 1)
+
+      # Returns Node G state
+      nodeG = neighbor_id
+    end
   end
 
   # stopping condition --> last level
   def hNodeToRoute(hNode, i) when i == 40 do
-    # Grab ith level NeighborMap_i from H;
-    # check if that level is empty --> terminate when null entry found
-    # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
-    # For (j=0; j<baseOfID; j++) {}
-    baseOfIDLoop(0)
+    # copy everything but recursion from below
   end
 
   def hNodeToRoute(hNode, i) do
@@ -200,6 +221,9 @@ defmodule TAPNODE do
     new_id = elem(state, 1)
     neighbor_map = elem(state, 3)
     # Grab ith level NeighborMap_i from H;
+    # Send Hello to neighbor no matter what so they can check if they need to add me to their map
+    # QUESTION: Can I send direct hello?
+    TAPNODE.sendHello(hNode, self())
     # check if that level is empty --> terminate when null entry found
     i_level_neighbor_map = Enum.at(neighbor_map, i)
 
@@ -210,7 +234,7 @@ defmodule TAPNODE do
       # For (j=0; j<baseOfID; j++) {}
       baseOfIDLoop(0)
       new_i = i + 1
-      hNodeNull(hNode, new_i)
+      hNodeToRoute(hNode, new_i)
     end
   end
 
@@ -238,27 +262,8 @@ defmodule TAPNODE do
     # sec.neighbors=neigh−>sec.neighbors(i,j);
   end
 
-  def contactGatewayNode(new_id, childPid) do
-    children = DynamicSupervisor.which_children(TAPESTRY)
-    # get a node from supervisor that is not yourself--> surrogate root
-    {_, neighbor_id, _, _} = Enum.at(children, 1)
-
-    if neighbor_id != childPid do
-      state = :sys.get_state(neighbor_id)
-      index = elem(state, 0)
-      new_id = elem(state, 1)
-
-      # Returns Node G id
-      nodeG = neighbor_id
-    else
-      {_, neighbor_id, _, _} = Enum.at(children, 0)
-      state = :sys.get_state(neighbor_id)
-      index = elem(state, 0)
-      new_id = elem(state, 1)
-
-      # Returns Node G state
-      nodeG = neighbor_id
-    end
+  def routeToCurrentSurrogate(surrogate_Node) do
+    # routes to the current surrogate for new_id, and moves data meant for new_id to N
   end
 
   def routeToObject(new_id) do
