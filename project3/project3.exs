@@ -92,7 +92,7 @@ defmodule TAPNODE do
   @impl true
   def handle_cast({:receiveHello, n_id}, state) do
     new_state = placeInNeighborMap(n_id, state)
-    {:noreply, new_st(ate)}
+    {:noreply, new_state}
   end
 
   # Server
@@ -113,12 +113,14 @@ defmodule TAPNODE do
     # state = index, new_id, numRequestToSend, neighborMap
     index = elem(state, 0)
     new_id = elem(state, 1)
-    # numRequestToSend = elem(state, 2)
+    numRequestToSend = elem(state, 2)
+    # neighborMap = elem(state, 3)
     IO.inspect(new_id, label: "#{index}'s new_id is")
 
     # OG = N as an object
     # Objects routed by ID
     gNode = contactGatewayNode(new_id, childPid)
+    IO.inspect(gNode, label: "GatewayNode'd ID is")
     hNode = gNode
     # For (i=0; H != NULL; i++) {
     # Grab ith level NeighborMap_i from H;
@@ -137,21 +139,27 @@ defmodule TAPNODE do
     # Call notifyNeighbors(surrogate(new_id))
   end
 
-  # for initalizing I need to know at least one other node from supervisor
-  # really only the first node should have to use this function?
   def contactGatewayNode(new_id, childPid) do
     children = DynamicSupervisor.which_children(TAPESTRY)
-    # get a node from supervisor that is not yourself
-    {_, newChildPid, _, _} = Enum.at(children, 1)
+    # get a node from supervisor that is not yourself--> surrogate root
+    {_, neighbor_id, _, _} = Enum.at(children, 1)
 
-    if newChildPid != childPid do
+    if neighbor_id != childPid do
+      state = :sys.get_state(neighbor_id)
+      index = elem(state, 0)
+      new_id = elem(state, 1)
+
+      # Returns Node G id
+      nodeG = new_id
     else
-      {_, newChildPid, _, _} = Enum.at(children, 0)
-    end
+      {_, neighbor_id, _, _} = Enum.at(children, 0)
+      state = :sys.get_state(neighbor_id)
+      index = elem(state, 0)
+      new_id = elem(state, 1)
 
-    # Call routeToObject (OG); Use routing algorithm to find G as if N was an object
-    # Returns Node G
-    nodeG = routeToObject(new_id)
+      # Returns Node G id
+      nodeG = new_id
+    end
   end
 
   def routeToObject(new_id) do
