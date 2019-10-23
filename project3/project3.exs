@@ -102,14 +102,13 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
-    # IO.inspect(state, label: "my state")
+    IO.inspect(state, label: "my state")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
 
     # OG = N as an object; objects routed by ID
-
     h_node_pid = contactGatewayNode(my_id, self())
-    # IO.inspect(gNode, label: "GatewayNode'd ID is")
+    # IO.inspect(h_node_pid, label: "GatewayNode's pid is")
 
     # i is the level; 41 levels because 40 digits in id ???
     # For (i=0; hNode != NULL; i++) {}
@@ -302,8 +301,7 @@ defmodule TAPNODE do
   def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
     my_id = elem(my_state, 1)
     my_neighborMap = elem(my_state, 3)
-    # IO.inspect(my_neighborMap, label: "#{my_id} my_neighborMap is")
-    # IO.puts(" #{my_neighborMap}")
+
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
 
@@ -349,12 +347,12 @@ defmodule TAPNODE do
           # IO.puts("level j not here yet")
 
           # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
-          _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
+          _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
         end
       else
         # IO.puts("level j not here yet")
         # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
-        _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
+        _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
       end
 
     # update state
@@ -390,11 +388,12 @@ defmodule TAPNODE do
 
     {current_neighbors, updateedNeighborMap} =
       Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
-        # IO.inspect(current_neighbors, label: "current_neighbors")
-        {current_neighbors, new_neighbor}
+        IO.inspect(current_neighbors, label: "current_neighbors")
+        update = current_neighbors ++ [new_neighbor]
+        {current_neighbors, update}
       end)
 
-    # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
+    IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
     updateedNeighborMap
   end
 end
