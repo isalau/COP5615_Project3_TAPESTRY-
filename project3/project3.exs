@@ -102,7 +102,7 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
-    IO.inspect(state, label: "my state")
+    # IO.inspect(state, label: "my state")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
 
@@ -129,7 +129,7 @@ defmodule TAPNODE do
     # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
     new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
-    # IO.inspect(new_state, label: "#{my_id} new state")
+    IO.inspect(new_state, label: "new state")
 
     {:reply, new_state, new_state}
   end
@@ -183,14 +183,14 @@ defmodule TAPNODE do
     #
     # get neighbor map from h
     {_, _, _, h_neighbor_map} = h_state
-    IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+    # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
     # # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
       # check if  i level is empty --> terminate when null entry found
       if checkIfLevelExists(h_neighbor_map, i) == true do
         # Grab i level from h_neighbor_map;
         i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-        IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+        # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
         #     #     # For (j=0; j<baseOfID; j++) {}
         #     #     #   baseOfIDLoop(0)
         #     #     #   new_i = i + 1
@@ -210,18 +210,18 @@ defmodule TAPNODE do
     if(Enum.count(h_neighbor_map) > 0) do
       if Map.has_key?(h_neighbor_map, i) == true do
         #   if Enum.any?(h_neighbor_map, fn neighbor ->
-        IO.inspect(h_neighbor_map, label: "neighbor level is")
+        # IO.inspect(h_neighbor_map, label: "neighbor level is")
         #        x_j = Enum.at(neighbor, 0)
         #        x_j == i
         #      end) == true do
-        IO.puts("level i already exists")
+        # IO.puts("level i already exists")
         true
       else
-        IO.puts("level i not here yet")
+        # IO.puts("level i not here yet")
         false
       end
     else
-      IO.puts("level i not here yet")
+      # IO.puts("level i not here yet")
       false
     end
   end
