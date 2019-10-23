@@ -96,7 +96,12 @@ defmodule TAPNODE do
 
   # Server
   @impl true
-  def handle_cast({:addToTapestry}, state) do
+  def handle_cast({:receiveNeighborMap, _n_id, _n_neighborMap}, _state) do
+  end
+
+  # Server
+  @impl true
+  def handle_call({:addToTapestry}, _from, state) do
     IO.inspect(state, label: "state")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
@@ -114,24 +119,26 @@ defmodule TAPNODE do
     # Move relevant pointers off current surrogate;
     # Use surrogate(new_id) backptrs to notify nodes by flooding back levels to where surrogate routing first became necessary
     # routeToCurrentSurrogate(h_node_pid)
-    {:noreply, state}
+    {:reply, state, state}
   end
 
   # Server
   @impl true
-  def handle_cast({:receiveHello, neighbor_pid, neighbor_id}, state) do
+  def handle_call({:receiveHello, neighbor_pid, neighbor_id}, _from, state) do
     my_id = elem(state, 1)
     IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
     new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
     IO.inspect(new_state, label: "#{my_id} new state")
 
-    {:noreply, state}
+    {:reply, state, state}
   end
 
   # Server
   @impl true
-  def handle_cast({:receiveNeighborMap, _n_id, _n_neighborMap}, _state) do
+  def handle_call({:getHState}, _from, state) do
+    # getting state
+    {:reply, state, state}
   end
 
   ################# CLIENT ######################
@@ -143,7 +150,7 @@ defmodule TAPNODE do
   end
 
   def addToTapestry(childPid) do
-    GenServer.cast(childPid, {:addToTapestry})
+    GenServer.call(childPid, {:addToTapestry}, :infinity)
   end
 
   def contactGatewayNode(_new_id, childPid) do
@@ -166,7 +173,9 @@ defmodule TAPNODE do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
-
+    IO.puts("calling")
+    h_state = getHState(h_node_pid)
+    IO.inspect(h_state, label: "h_state")
     # h_state = :sys.get_state(h_node_pid)
     # h_neighbor_map = elem(h_state, 3)
     # # Grab ith level NeighborMap_i from H;
@@ -184,10 +193,14 @@ defmodule TAPNODE do
     # end
   end
 
-  # stopping condition --> last level
-  def hNodeToRoute(_hNode, i, _new_id, _state) when i == 40 do
-    # copy everything but recursion from below
+  def getHState(h_node_pid) do
+    h_state = GenServer.call(h_node_pid, {:getHState}, :infinity)
   end
+
+  # stopping condition --> last level
+  # def hNodeToRoute(_hNode, i, _new_id, _state) when i == 40 do
+  #   # copy everything but recursion from below
+  # end
 
   # stopping condition --> last level
   def baseOfIDLoop(j) when j == 40 do
@@ -242,7 +255,7 @@ defmodule TAPNODE do
 
   def sendHello(neighbor_id, n_id, new_id) do
     # Node N sends hello to Neighbor new_neighbor  H(i)
-    GenServer.cast(neighbor_id, {:receiveHello, n_id, new_id})
+    GenServer.call(neighbor_id, {:receiveHello, n_id, new_id}, :infinity)
   end
 
   def sendNeighborMap(neighbor_id, n_pid) do
