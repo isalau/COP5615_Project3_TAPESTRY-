@@ -169,32 +169,59 @@ defmodule TAPNODE do
     end
   end
 
-  def hNodeToRoute(h_node_pid, _i, my_id, _my_state) do
+  def hNodeToRoute(h_node_pid, i, my_id, _my_state) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
-    # QUESTION: Can I send direct hello?
+    # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
-    IO.puts("calling")
+
     h_state = getHState(h_node_pid)
     IO.inspect(h_state, label: "h_state")
-    # h_state = :sys.get_state(h_node_pid)
-    # h_neighbor_map = elem(h_state, 3)
-    # # Grab ith level NeighborMap_i from H;
-    # # check if that level is empty --> terminate when null entry found
-    # i_level_neighbor_map = Enum.at(h_neighbor_map, i)
-    #
-    # if i_level_neighbor_map != nil do
-    #   IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-    #
-    #   # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
-    #   # For (j=0; j<baseOfID; j++) {}
-    #   baseOfIDLoop(0)
-    #   new_i = i + 1
-    #   hNodeToRoute(hNode, i, new_i, state)
-    # end
+
+    # get neighbor map from h
+    {_, _, _, h_neighbor_map} = h_state
+    IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+    # check if  h_neighbor_map level is empty
+    if Enum.count(h_neighbor_map) > 0 do
+      # check if  i level is empty --> terminate when null entry found
+      if checkIfLevelExists(h_neighbor_map, i) == true do
+        # Grab ith level NeighborMap_i from H;
+        i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+        IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+        # For (j=0; j<baseOfID; j++) {}
+        #   baseOfIDLoop(0)
+        #   new_i = i + 1
+        #   hNodeToRoute(hNode, i, new_i, state)
+        # end
+      else
+      end
+    else
+    end
   end
 
   def getHState(h_node_pid) do
     h_state = GenServer.call(h_node_pid, {:getHState}, :infinity)
+  end
+
+  def checkIfLevelExists(h_neighbor_map, i) do
+    if(Enum.count(h_neighbor_map) > 0) do
+      if Enum.any?(h_neighbor_map, fn x ->
+           IO.puts("x is #{x}")
+           x_j = Enum.at(x, 0)
+           x_j == i
+         end) == true do
+        IO.puts("level i already exists")
+        true
+      else
+        IO.puts("level i not here yet")
+        false
+      end
+    else
+      IO.puts("level i not here yet")
+      false
+    end
+  end
+
+  def getLevelI(h_neighbor_map, i) do
   end
 
   # stopping condition --> last level
