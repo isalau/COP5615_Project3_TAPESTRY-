@@ -97,7 +97,7 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
-    # IO.inspect(state, label: "my state")
+    IO.inspect(state, label: "\nMy Initial State")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
 
@@ -119,10 +119,9 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_call({:receiveHello, neighbor_id}, _from, state) do
-    # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
-
+    IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. My old state")
     new_state = placeInNeighborMap(state, neighbor_id)
-    # IO.inspect(new_state, label: "new state")
+    IO.inspect(new_state, label: "\nMy New state")
 
     {:reply, new_state, new_state}
   end
@@ -156,15 +155,16 @@ defmodule TAPNODE do
         # get every item in that level and add to my neighbor list
 
         new_state = levelBylevel(i_level, state, count, 0)
-
+        # //call other gensserver back 
         # Enum.each(i_level, fn x ->
-        #   IO.inspect(i_level, label: "level #{i} NeighborMap_i from H")
         #   # neighbor_id = Enum.at(x, 1)
         #   # pid = self()
         #   # result = GenServer.call(pid, {:addNewNeighbor, neighbor_id}, :infinity)
         #   # GenServer.reply(pid, result)
         #   new_state = placeInNeighborMap(my_state, neighbor_id)
         # end)
+
+        IO.inspect(new_state, label: "\nMy New State after H neighbors")
         {:reply, new_state, new_state}
       else
         {:reply, state, state}
@@ -237,11 +237,11 @@ defmodule TAPNODE do
     # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
 
-    _h_state = getHState(h_node_pid, i)
+    getHNeighbors(h_node_pid, i)
   end
 
-  def getHState(h_node_pid, i) do
-    _h_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
+  def getHNeighbors(h_node_pid, i) do
+    GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
   end
 
   def checkIfLevelIExists(h_neighbor_map, i) do
