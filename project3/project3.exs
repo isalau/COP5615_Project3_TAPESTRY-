@@ -343,17 +343,17 @@ defmodule TAPNODE do
       if(my_neighborMap != nil) do
         if Map.has_key?(my_neighborMap, j) == true do
           # if Enum.any?(my_neighborMap, fn x ->
-          # IO.puts("x is #{x}")
+          IO.inspect(j, label: "j")
           # level_j = Enum.at(x, 0)
           # IO.puts("level_j is #{level_j}")
           # x_j = Enum.at(level_j, 0)
           # IO.puts("x_j is #{x_j}")
           # x_j == j
           # end) == true do
-          # IO.puts("level j already exists")
 
           # _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
-          _new_my_neighborMap = updateYourNeighborMap(my_neighborMap, new_neighbor)
+          new_neighbor = [i, neighbor_id]
+          _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
         else
           # IO.puts("level j not here yet")
           _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
@@ -388,33 +388,43 @@ defmodule TAPNODE do
     end
   end
 
-  def updateYourNeighborMap(my_neighborMap, new_neighbor) do
+  def updateYourNeighborMap(j, my_neighborMap, new_neighbor) do
     IO.inspect(new_neighbor, label: "new_neighbor")
-    j = Enum.at(new_neighbor, 0)
-    i = Enum.at(new_neighbor, 1)
-    neighbor_id = Enum.at(new_neighbor, 2)
+    # j = Enum.at(new_neighbor, 0)
+    # IO.inspect(j, label: "j")
+    # i = Enum.at(new_neighbor, 1)
+    # neighbor_id = Enum.at(new_neighbor, 2)
 
     # get j level
     IO.inspect(my_neighborMap, label: "my_neighborMap")
 
-    level =
-      Enum.find(my_neighborMap, nil, fn level ->
-        IO.inspect(level, label: "level")
-        first_level_neighbor = Enum.at(level, 0)
-        IO.inspect(first_level_neighbor, label: "first_level_neighbor")
-        first_level_index = Enum.at(first_level_neighbor, 0)
-        IO.inspect(first_level_index, label: "first_level_index")
+    updateedNeighborMap = IO.puts("here 1")
 
-        first_level_index == j
-      end)
-
-    # update j level
-    new_j_level = [new_neighbor | level]
-    # do the distance formula thing
-    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
-    # dist()
+    Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
+      IO.inspect(current_neighbors, label: "current_neighbors")
+      updated_neighbors = [new_neighbor | [current_neighbors]]
+      IO.inspect(updated_neighbors, label: "updated_neighbors")
+      {current_neighbors, updated_neighbors}
+    end)
   end
 end
+
+# level =
+#   Enum.find(my_neighborMap, nil, fn level ->
+#     IO.inspect(level, label: "level")
+#     first_level_neighbor = Enum.at(level, 0)
+#     IO.inspect(first_level_neighbor, label: "first_level_neighbor")
+#     first_level_index = Enum.at(first_level_neighbor, 0)
+#     IO.inspect(first_level_index, label: "first_level_index")
+#
+#     first_level_index == j
+#   end)
+
+# update j level
+# new_j_level = [new_neighbor | level]
+# do the distance formula thing
+# While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
+# dist()
 
 # Take command line arguments
 arguments = System.argv()
