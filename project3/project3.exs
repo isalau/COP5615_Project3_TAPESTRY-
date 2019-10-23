@@ -24,10 +24,19 @@ defmodule MAINPROJ do
 
     for x <- children do
       {_, childPid, _, _} = x
+      state = :sys.get_state(childPid)
+      new_id = elem(state, 1)
+      IO.inspect(childPid, label: "childPid")
+      # IO.inspect(new_id, label: "new_id")
       TAPNODE.addToTapestry(childPid)
     end
 
+    # keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
+  end
+
+  def keepAlive() do
+    keepAlive()
   end
 end
 
@@ -62,13 +71,14 @@ defmodule TAPNODE do
   ################# SERVER ######################
   def start_link([index, numRequests]) do
     # -	Node N requests a new ID new_id
-
+    # IO.inspect(self(), label: "#{index}s pid")
     # Tapestry currently uses an identifier space of 160-bit values
     # Tapestry assumes nodeIDs and GUIDs are roughly evenly distributed in the namespace, which can be achieved by using a secure hashing algorithm like SHA-1
     random_number = :rand.uniform(10000)
     sha = :crypto.hash(:sha, "#{random_number}")
     new_id = sha |> Base.encode16()
     IO.inspect(new_id, label: "sha 1 output")
+
     numRequestToSend = numRequests
 
     neighborMap = [
@@ -138,17 +148,46 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:receiveMsg}, _from, {serverFrom, msg}) do
-    IO.inspect(serverFrom, label: "in server receiveMsg")
+    # IO.inspect(serverFrom, label: "in server receiveMsg")
 
     {:reply, :ok, {serverFrom, msg}}
   end
 
   # Server
   @impl true
-  def handle_cast({:receiveHello, n_id}, state) do
-    new_state = placeInNeighborMap(n_id, state)
-    IO.puts("Received Hello")
-    {:noreply, new_state}
+  def handle_cast({:addToTapestry}, state) do
+    # state = :sys.get_state(childPid)
+    # state = index, new_id, numRequestToSend, neighborMap
+    index = elem(state, 0)
+    new_id = elem(state, 1)
+    numRequestToSend = elem(state, 2)
+    # neighborMap = elem(state, 3)
+    # IO.inspect(new_id, label: "#{index}'s new_id is")
+
+    # OG = N as an object; objects routed by ID
+
+    gNode = contactGatewayNode(new_id, self())
+    # IO.inspect(gNode, label: "GatewayNode'd ID is")
+
+    hNode = gNode
+    # i is the level; 41 levels because 40 digits in id ???
+    # For (i=0; hNode != NULL; i++) {}
+    # QUESTION: What should hNodeToRoute return?
+    hNodeToRoute(hNode, 0, new_id)
+    # Route to current surrogate via new_id;
+    # Move relevant pointers off current surrogate;
+    # Use surrogate(new_id) backptrs to notify nodes by flooding back levels to where surrogate routing first became necessary
+    routeToCurrentSurrogate(hNode)
+    {:noreply, state}
+  end
+
+  # Server
+  @impl true
+  def handle_cast({:receiveHello, n_id, neighbor_id}, state) do
+    # IO.puts("Received Hello from #{neighbor_id}")
+    new_state = placeInNeighborMap(n_id, state, neighbor_id)
+
+    {:noreply, state}
   end
 
   # Server
@@ -165,26 +204,7 @@ defmodule TAPNODE do
   end
 
   def addToTapestry(childPid) do
-    state = :sys.get_state(childPid)
-    # state = index, new_id, numRequestToSend, neighborMap
-    index = elem(state, 0)
-    new_id = elem(state, 1)
-    numRequestToSend = elem(state, 2)
-    # neighborMap = elem(state, 3)
-    IO.inspect(new_id, label: "#{index}'s new_id is")
-
-    # OG = N as an object; objects routed by ID
-    gNode = contactGatewayNode(new_id, childPid)
-    IO.inspect(gNode, label: "GatewayNode'd ID is")
-    hNode = gNode
-    # i is the level; 41 levels because 40 digits in id ???
-    # For (i=0; hNode != NULL; i++) {}
-    # QUESTION: What should hNodeToRoute return?
-    hNodeToRoute(hNode, 0)
-    # Route to current surrogate via new_id;
-    # Move relevant pointers off current surrogate;
-    # Use surrogate(new_id) backptrs to notify nodes by flooding back levels to where surrogate routing first became necessary
-    routeToCurrentSurrogate(hNode)
+    GenServer.cast(childPid, {:addToTapestry})
   end
 
   def contactGatewayNode(new_id, childPid) do
@@ -193,17 +213,10 @@ defmodule TAPNODE do
     {_, neighbor_id, _, _} = Enum.at(children, 1)
 
     if neighbor_id != childPid do
-      state = :sys.get_state(neighbor_id)
-      index = elem(state, 0)
-      new_id = elem(state, 1)
-
       # Returns Node G id
       nodeG = neighbor_id
     else
       {_, neighbor_id, _, _} = Enum.at(children, 0)
-      state = :sys.get_state(neighbor_id)
-      index = elem(state, 0)
-      new_id = elem(state, 1)
 
       # Returns Node G state
       nodeG = neighbor_id
@@ -211,31 +224,32 @@ defmodule TAPNODE do
   end
 
   # stopping condition --> last level
-  def hNodeToRoute(hNode, i) when i == 40 do
+  def hNodeToRoute(hNode, i, new_id) when i == 40 do
     # copy everything but recursion from below
   end
 
-  def hNodeToRoute(hNode, i) do
-    state = :sys.get_state(hNode)
-    index = elem(state, 0)
-    new_id = elem(state, 1)
-    neighbor_map = elem(state, 3)
-    # Grab ith level NeighborMap_i from H;
+  def hNodeToRoute(hNode, i, new_id) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello?
-    TAPNODE.sendHello(hNode, self())
-    # check if that level is empty --> terminate when null entry found
-    i_level_neighbor_map = Enum.at(neighbor_map, i)
+    TAPNODE.sendHello(hNode, self(), new_id)
 
-    if i_level_neighbor_map != nil do
-      IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-
-      # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
-      # For (j=0; j<baseOfID; j++) {}
-      baseOfIDLoop(0)
-      new_i = i + 1
-      hNodeToRoute(hNode, new_i)
-    end
+    # state = :sys.get_state(hNode)
+    # index = elem(state, 0)
+    # new_id = elem(state, 1)
+    # neighbor_map = elem(state, 3)
+    # # Grab ith level NeighborMap_i from H;
+    # # check if that level is empty --> terminate when null entry found
+    # i_level_neighbor_map = Enum.at(neighbor_map, i)
+    #
+    # if i_level_neighbor_map != nil do
+    #   IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+    #
+    #   # The new node stops copying neighbor maps when a neighbor map lookup shows an empty entry in the next hop.
+    #   # For (j=0; j<baseOfID; j++) {}
+    #   baseOfIDLoop(0)
+    #   new_i = i + 1
+    #   hNodeToRoute(hNode, new_i)
+    # end
   end
 
   # stopping condition --> last level
@@ -298,9 +312,9 @@ defmodule TAPNODE do
     # }
   end
 
-  def sendHello(neighbor_id, n_id) do
+  def sendHello(neighbor_id, n_id, new_id) do
     # Node N sends hello to Neighbor new_neighbor  H(i)
-    GenServer.cast(neighbor_id, {:receiveHello, n_id})
+    GenServer.cast(neighbor_id, {:receiveHello, n_id, new_id})
   end
 
   def sendNeighborMap(neighbor_id, n_pid) do
@@ -322,8 +336,19 @@ defmodule TAPNODE do
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
   end
 
-  def placeInNeighborMap(n_id, state) do
-    new_state = state
+  def placeInNeighborMap(neighbor_pid, my_state, neighbor_id) do
+    IO.inspect(neighbor_id, label: "neighbor_id")
+
+    my_id = elem(my_state, 1)
+    IO.inspect(my_id, label: "my_id")
+
+    my_neighborMap = elem(my_state, 3)
+
+    # find j - compare characters to find what level it belongs to
+    j = findJ(my_id, neighbor_id, 0)
+    IO.puts("Length of most in common prefix #{j}")
+
+    # find i
 
     # Notified nodes have the option of measuring distance to N, and if appropriate, replacing an existing neighbor entry with N.
     # As nodes receive the message, they add N to their routing tables and transfer references of locally rooted pointers as necessary
@@ -332,7 +357,19 @@ defmodule TAPNODE do
     # “republish those objects”
     # “establishing new surrogate routes which account for the new inserted node.”
     # SendNeighborMap(new_neighbor, N)
-    new_state
+    my_state
+  end
+
+  def findJ(my_id, neighbor_id, j) do
+    prefixA = String.slice(my_id, 0..j)
+    prefixB = String.slice(neighbor_id, 0..j)
+    new_j = j + 1
+
+    if prefixA == prefixB do
+      IO.puts("It's A Match")
+      findJ(my_id, neighbor_id, new_j)
+      new_j
+    end
   end
 end
 
