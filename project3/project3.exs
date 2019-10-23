@@ -129,7 +129,7 @@ defmodule TAPNODE do
     # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
     new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
-    IO.inspect(new_state, label: "#{my_id} new state")
+    # IO.inspect(new_state, label: "#{my_id} new state")
 
     {:reply, new_state, new_state}
   end
@@ -185,22 +185,22 @@ defmodule TAPNODE do
     {_, _, _, h_neighbor_map} = h_state
     # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
     # # check if  h_neighbor_map level is empty
-    if h_neighbor_map != nil do
-      # check if  i level is empty --> terminate when null entry found
-      if checkIfLevelExists(h_neighbor_map, i) == true do
-        #     # Grab i level from h_neighbor_map;
-        #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-        #     # BUG: currently levels can only hold one neighbor, i think
-        #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-        #     # For (j=0; j<baseOfID; j++) {}
-        #     #   baseOfIDLoop(0)
-        #     #   new_i = i + 1
-        #     #   hNodeToRoute(hNode, i, new_i, state)
-        #     # end
-      else
-      end
-    else
-    end
+    # if h_neighbor_map != nil do
+    #   # check if  i level is empty --> terminate when null entry found
+    #   if checkIfLevelExists(h_neighbor_map, i) == true do
+    #     #     # Grab i level from h_neighbor_map;
+    #     #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+    #     #     # BUG: currently levels can only hold one neighbor, i think
+    #     #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+    #     #     # For (j=0; j<baseOfID; j++) {}
+    #     #     #   baseOfIDLoop(0)
+    #     #     #   new_i = i + 1
+    #     #     #   hNodeToRoute(hNode, i, new_i, state)
+    #     #     # end
+    #   else
+    #   end
+    # else
+    # end
   end
 
   def getHState(h_node_pid) do
@@ -311,7 +311,7 @@ defmodule TAPNODE do
   def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
     my_id = elem(my_state, 1)
     my_neighborMap = elem(my_state, 3)
-    IO.inspect(my_neighborMap, label: "#{my_id} my_neighborMap is")
+    # IO.inspect(my_neighborMap, label: "#{my_id} my_neighborMap is")
     # IO.puts(" #{my_neighborMap}")
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
@@ -343,7 +343,7 @@ defmodule TAPNODE do
       if(my_neighborMap != nil) do
         if Map.has_key?(my_neighborMap, j) == true do
           # if Enum.any?(my_neighborMap, fn x ->
-          IO.inspect(j, label: "j")
+          # IO.inspect(j, label: "j")
           # level_j = Enum.at(x, 0)
           # IO.puts("level_j is #{level_j}")
           # x_j = Enum.at(level_j, 0)
@@ -356,16 +356,15 @@ defmodule TAPNODE do
           _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
         else
           # IO.puts("level j not here yet")
-          _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
+
           # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
+          _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
         end
       else
         # IO.puts("level j not here yet")
         # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
         _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
       end
-
-    # IO.inspect(new_my_neighborMap, label: "new_my_neighborMap")
 
     # update state
     temp_state = Tuple.delete_at(my_state, 3)
@@ -389,23 +388,25 @@ defmodule TAPNODE do
   end
 
   def updateYourNeighborMap(j, my_neighborMap, new_neighbor) do
-    IO.inspect(new_neighbor, label: "new_neighbor")
+    # IO.inspect(new_neighbor, label: "new_neighbor")
     # j = Enum.at(new_neighbor, 0)
     # IO.inspect(j, label: "j")
     # i = Enum.at(new_neighbor, 1)
     # neighbor_id = Enum.at(new_neighbor, 2)
 
     # get j level
-    IO.inspect(my_neighborMap, label: "my_neighborMap")
+    # IO.inspect(my_neighborMap, label: "my_neighborMap")
 
-    updateedNeighborMap = IO.puts("here 1")
+    # updateedNeighborMap = IO.puts("here 1")
 
-    Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
-      IO.inspect(current_neighbors, label: "current_neighbors")
-      updated_neighbors = [new_neighbor | [current_neighbors]]
-      IO.inspect(updated_neighbors, label: "updated_neighbors")
-      {current_neighbors, updated_neighbors}
-    end)
+    {current_neighbors, updateedNeighborMap} =
+      Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
+        IO.inspect(current_neighbors, label: "current_neighbors")
+        {current_neighbors, new_neighbor}
+      end)
+
+    IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
+    updateedNeighborMap
   end
 end
 
