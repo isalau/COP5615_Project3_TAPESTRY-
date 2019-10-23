@@ -346,9 +346,22 @@ defmodule TAPNODE do
 
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
-    IO.puts("Length of most in common prefix #{j}")
 
-    # find i
+    if j > 0 do
+      j_corrected = j - 1
+      IO.puts("Length of most in common prefix #{j_corrected}")
+
+      prefix = String.slice(my_id, 0..j_corrected)
+      IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix}")
+      # find i
+      i_index = j_corrected + 1
+      i = String.at(neighbor_id, i_index)
+      IO.puts("i for #{neighbor_id} is: #{i}")
+    else
+      # i is the first elemment
+      i = String.at(neighbor_id, 0)
+      IO.puts("i for #{neighbor_id} is: #{i}")
+    end
 
     # Notified nodes have the option of measuring distance to N, and if appropriate, replacing an existing neighbor entry with N.
     # As nodes receive the message, they add N to their routing tables and transfer references of locally rooted pointers as necessary
@@ -366,9 +379,11 @@ defmodule TAPNODE do
     new_j = j + 1
 
     if prefixA == prefixB do
-      IO.puts("It's A Match")
+      # IO.puts("It's A Match")
       findJ(my_id, neighbor_id, new_j)
       new_j
+    else
+      j
     end
   end
 end
