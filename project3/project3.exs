@@ -81,60 +81,61 @@ defmodule TAPNODE do
 
     numRequestToSend = numRequests
 
-    neighborMap = [
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-      "f",
-      "g",
-      "h",
-      "i",
-      "j",
-      "k",
-      "l",
-      "m",
-      "n",
-      "o",
-      "p",
-      "q",
-      "r",
-      "s",
-      "t",
-      "u",
-      "v",
-      "w",
-      "x",
-      "y",
-      "z",
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-      "f",
-      "g",
-      "h",
-      "i",
-      "j",
-      "k",
-      "l",
-      "m",
-      "n",
-      "o",
-      "p",
-      "q",
-      "r",
-      "s",
-      "t",
-      "u",
-      "v",
-      "w",
-      "x",
-      "y",
-      "z"
-    ]
+    neighborMap = []
+    # neighborMap = [
+    #   "a",
+    #   "b",
+    #   "c",
+    #   "d",
+    #   "e",
+    #   "f",
+    #   "g",
+    #   "h",
+    #   "i",
+    #   "j",
+    #   "k",
+    #   "l",
+    #   "m",
+    #   "n",
+    #   "o",
+    #   "p",
+    #   "q",
+    #   "r",
+    #   "s",
+    #   "t",
+    #   "u",
+    #   "v",
+    #   "w",
+    #   "x",
+    #   "y",
+    #   "z",
+    #   "a",
+    #   "b",
+    #   "c",
+    #   "d",
+    #   "e",
+    #   "f",
+    #   "g",
+    #   "h",
+    #   "i",
+    #   "j",
+    #   "k",
+    #   "l",
+    #   "m",
+    #   "n",
+    #   "o",
+    #   "p",
+    #   "q",
+    #   "r",
+    #   "s",
+    #   "t",
+    #   "u",
+    #   "v",
+    #   "w",
+    #   "x",
+    #   "y",
+    #   "z"
+    # ]
 
     # ROUTER = ??
     # DYNAMIC_NODE_MANAGEMENT == ?
@@ -186,7 +187,7 @@ defmodule TAPNODE do
   def handle_cast({:receiveHello, n_id, neighbor_id}, state) do
     # IO.puts("Received Hello from #{neighbor_id}")
     new_state = placeInNeighborMap(n_id, state, neighbor_id)
-
+    IO.inspect(new_state, label: "new_state")
     {:noreply, state}
   end
 
@@ -343,34 +344,48 @@ defmodule TAPNODE do
     IO.inspect(my_id, label: "my_id")
 
     my_neighborMap = elem(my_state, 3)
-
+    IO.inspect(my_neighborMap, label: "my_neighborMap")
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
 
-    if j > 0 do
-      j_corrected = j - 1
-      IO.puts("Length of most in common prefix #{j_corrected}")
+    i =
+      if j > 0 do
+        j_corrected = j - 1
+        IO.puts("Length of most in common prefix #{j_corrected}")
 
-      prefix = String.slice(my_id, 0..j_corrected)
-      IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix}")
-      # find i
-      i_index = j_corrected + 1
-      i = String.at(neighbor_id, i_index)
-      IO.puts("i for #{neighbor_id} is: #{i}")
-    else
-      # i is the first elemment
-      i = String.at(neighbor_id, 0)
-      IO.puts("i for #{neighbor_id} is: #{i}")
-    end
+        prefix = String.slice(my_id, 0..j_corrected)
+        IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix}")
+        # find i
+        i_index = j_corrected + 1
+        i = String.at(neighbor_id, i_index)
+        IO.puts("i for #{neighbor_id} is: #{i}")
+        i
+      else
+        # i is the first elemment
+        i = String.at(neighbor_id, 0)
+        IO.puts("i for #{neighbor_id} is: #{i}")
+        i
+      end
 
-    # Notified nodes have the option of measuring distance to N, and if appropriate, replacing an existing neighbor entry with N.
-    # As nodes receive the message, they add N to their routing tables and transfer references of locally rooted pointers as necessary
-    # “When we proceed to fill in an empty entry at N, we know from our algorithm the range of objects whose surrogate route were moved from”  [N+1 entry location]
-    # “We can then explicitly delete those entries”
-    # “republish those objects”
-    # “establishing new surrogate routes which account for the new inserted node.”
-    # SendNeighborMap(new_neighbor, N)
-    my_state
+    # Create dummy neighbor
+    new_neighbor = [j, i, neighbor_id]
+
+    # Check if level j exists
+    new_my_neighborMap =
+      if Enum.any?(my_neighborMap, fn x ->
+           x_j = elem(x, 0)
+           x_j == j
+         end) == true do
+        IO.puts("level j already exists")
+      else
+        IO.puts("level j not here yet")
+        new_my_neighborMap = my_neighborMap ++ new_neighbor
+      end
+
+    IO.inspect(my_state, label: "My old state")
+    # update state
+    my_new_state = Tuple.delete_at(my_state, 3)
+    my_new_state = Tuple.insert_at(my_new_state, 3, new_my_neighborMap)
   end
 
   def findJ(my_id, neighbor_id, j) do
