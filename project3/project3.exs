@@ -169,6 +169,11 @@ defmodule TAPNODE do
     end
   end
 
+  # stopping condition --> last level
+  # def hNodeToRoute(_hNode, i, _new_id, _state) when i == 40 do
+  #   # copy everything but recursion from below
+  # end
+
   def hNodeToRoute(h_node_pid, i, my_id, _my_state) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello like this?
@@ -184,8 +189,9 @@ defmodule TAPNODE do
     if Enum.count(h_neighbor_map) > 0 do
       # check if  i level is empty --> terminate when null entry found
       if checkIfLevelExists(h_neighbor_map, i) == true do
-        # Grab ith level NeighborMap_i from H;
+        # Grab i level from h_neighbor_map;
         i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+        # BUG: currently levels can only hold one neighbor, i think
         IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
         # For (j=0; j<baseOfID; j++) {}
         #   baseOfIDLoop(0)
@@ -222,12 +228,16 @@ defmodule TAPNODE do
   end
 
   def getLevelI(h_neighbor_map, i) do
-  end
+    Enum.any?(h_neighbor_map, fn neighbor ->
+      IO.puts("neighbor level is #{neighbor}")
+      neighbor_i = Enum.at(neighbor, 0)
 
-  # stopping condition --> last level
-  # def hNodeToRoute(_hNode, i, _new_id, _state) when i == 40 do
-  #   # copy everything but recursion from below
-  # end
+      if neighbor_i == i do
+        IO.puts("returning level i")
+        neighbor
+      end
+    end)
+  end
 
   # stopping condition --> last level
   def baseOfIDLoop(j) when j == 40 do
