@@ -123,7 +123,7 @@ defmodule TAPNODE do
 
   # Server
   @impl true
-  def handle_call({:receiveHello, neighbor_pid, neighbor_id}, _from, state) do
+  def handle_call({:receiveHello, neighbor_id}, _from, state) do
     my_id = elem(state, 1)
     # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
@@ -135,12 +135,73 @@ defmodule TAPNODE do
 
   # Server
   @impl true
-  def handle_call({:getHState}, _from, state) do
+  def handle_call({:addNewNeighbor, neighbor_id}, _from, state) do
+    my_id = elem(state, 1)
+    # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
+
+    new_state = placeInNeighborMap(state, neighbor_id)
+    IO.inspect(new_state, label: "new state")
+
+    {:reply, new_state, new_state}
+  end
+
+  # Server
+  @impl true
+  def handle_call({:getHNeighbors, i}, _from, state) do
     # getting state
-    {:reply, state, state}
+    # get neighbor map from h
+    {_, neighbor_id, _, h_neighbor_map} = state
+
+    # # check if  h_neighbor_map level is empty
+    if h_neighbor_map != nil do
+      # check if  i level is empty --> terminate when null entry found
+      if checkIfLevelIExists(h_neighbor_map, i) == true do
+        # Grab i level from h_neighbor_map;
+        i_level = getLevelI(h_neighbor_map, i)
+        count = Enum.count(i_level)
+        IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
+        # get every item in that level and add to my neighbor list
+
+        new_state = levelBylevel(i_level, state, count, 0)
+
+        # Enum.each(i_level, fn x ->
+        #   IO.inspect(i_level, label: "level #{i} NeighborMap_i from H")
+        #   # neighbor_id = Enum.at(x, 1)
+        #   # pid = self()
+        #   # result = GenServer.call(pid, {:addNewNeighbor, neighbor_id}, :infinity)
+        #   # GenServer.reply(pid, result)
+        #   new_state = placeInNeighborMap(my_state, neighbor_id)
+        # end)
+        {:reply, new_state, new_state}
+      else
+        {:reply, state, state}
+      end
+    else
+      {:reply, state, state}
+    end
   end
 
   ################# CLIENT ######################
+
+  def levelBylevel(i_level, my_state, count, j) do
+    neighbor = Enum.at(i_level, j)
+    IO.inspect(neighbor, label: "In #{j} levelBylevel neighbor ")
+
+    neighbor_id = Enum.at(neighbor, 1)
+    IO.inspect(neighbor_id, label: "In levelBylevel neighbor_id ")
+
+    new_count = count - 1
+    IO.inspect(i_level, label: "In levelBylevel, count #{count}, new_count #{new_count} ")
+
+    new_j = j + 1
+    new_state = placeInNeighborMap(my_state, neighbor_id)
+
+    if new_count > 0 do
+      levelBylevel(i_level, new_state, new_count, new_j)
+    else
+      new_state
+    end
+  end
 
   def stayAlive(keep) do
     if keep == true do
@@ -178,37 +239,11 @@ defmodule TAPNODE do
     # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
 
-    h_state = getHState(h_node_pid)
-    #
-    # get neighbor map from h
-    {_, _, _, h_neighbor_map} = h_state
-
-    # # check if  h_neighbor_map level is empty
-    if h_neighbor_map != nil do
-      # check if  i level is empty --> terminate when null entry found
-      if checkIfLevelIExists(h_neighbor_map, i) == true do
-        # Grab i level from h_neighbor_map;
-        i_level = getLevelI(h_neighbor_map, i)
-        # IO.inspect(i_level, label: "level #{i} NeighborMap_i from H")
-        # get every item in that level and add to my neighbor list
-        Enum.each(i_level, fn x ->
-          neighbor_id = Enum.at(x, 1)
-          placeInNeighborMap(my_state, neighbor_id)
-        end)
-
-        # For (j=0; j<baseOfID; j++) {}
-        # baseOfIDLoop(0)
-        # new_i = i + 1
-        # hNodeToRoute(hNode, i, new_i, state)
-        # end
-      else
-      end
-    else
-    end
+    h_state = getHState(h_node_pid, i)
   end
 
-  def getHState(h_node_pid) do
-    h_state = GenServer.call(h_node_pid, {:getHState}, :infinity)
+  def getHState(h_node_pid, i) do
+    h_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
   end
 
   def checkIfLevelIExists(h_neighbor_map, i) do
@@ -279,7 +314,7 @@ defmodule TAPNODE do
 
   def sendHello(neighbor_id, n_id, new_id) do
     # Node N sends hello to Neighbor new_neighbor  H(i)
-    GenServer.call(neighbor_id, {:receiveHello, n_id, new_id}, :infinity)
+    GenServer.call(neighbor_id, {:receiveHello, new_id}, :infinity)
   end
 
   def sendNeighborMap(neighbor_id, n_pid) do
@@ -301,8 +336,8 @@ defmodule TAPNODE do
   end
 
   def placeInNeighborMap(my_state, neighbor_id) do
-    IO.inspect(neighbor_id, label: "neighbor_id")
     my_id = elem(my_state, 1)
+    IO.inspect(neighbor_id, label: "my id is #{my_id} and neighbor_id")
 
     if(my_id != neighbor_id) do
       my_neighborMap = elem(my_state, 3)
@@ -338,7 +373,7 @@ defmodule TAPNODE do
         if(my_neighborMap != nil) do
           if Map.has_key?(my_neighborMap, j) == true do
             # if Enum.any?(my_neighborMap, fn x ->
-            # IO.inspect(j, label: "level j")
+            IO.inspect(j, label: "level j")
             # level_j = Enum.at(x, 0)
             # IO.puts("level_j is #{level_j}")
             # x_j = Enum.at(level_j, 0)
@@ -350,13 +385,13 @@ defmodule TAPNODE do
             new_neighbor = [i, neighbor_id]
             _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
           else
-            # IO.puts("level j not here yet")
+            IO.puts("level j not here yet")
 
             # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
             _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
           end
         else
-          # IO.puts("level j not here yet")
+          IO.puts("level j not here yet")
           # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
           _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
         end
