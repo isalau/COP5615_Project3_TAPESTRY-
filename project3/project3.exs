@@ -24,10 +24,6 @@ defmodule MAINPROJ do
 
     for x <- children do
       {_, childPid, _, _} = x
-      state = :sys.get_state(childPid)
-      new_id = elem(state, 1)
-      IO.inspect(childPid, label: "childPid")
-      # IO.inspect(new_id, label: "new_id")
       TAPNODE.addToTapestry(childPid)
     end
 
@@ -70,7 +66,7 @@ defmodule TAPNODE do
 
   ################# SERVER ######################
   def start_link([index, numRequests]) do
-    # -	Node N requests a new ID new_id
+    # Node N requests a new ID new_id
     # IO.inspect(self(), label: "#{index}s pid")
     # Tapestry currently uses an identifier space of 160-bit values
     # Tapestry assumes nodeIDs and GUIDs are roughly evenly distributed in the namespace, which can be achieved by using a secure hashing algorithm like SHA-1
@@ -82,63 +78,7 @@ defmodule TAPNODE do
     numRequestToSend = numRequests
 
     neighborMap = []
-    # neighborMap = [
-    #   "a",
-    #   "b",
-    #   "c",
-    #   "d",
-    #   "e",
-    #   "f",
-    #   "g",
-    #   "h",
-    #   "i",
-    #   "j",
-    #   "k",
-    #   "l",
-    #   "m",
-    #   "n",
-    #   "o",
-    #   "p",
-    #   "q",
-    #   "r",
-    #   "s",
-    #   "t",
-    #   "u",
-    #   "v",
-    #   "w",
-    #   "x",
-    #   "y",
-    #   "z",
-    #   "a",
-    #   "b",
-    #   "c",
-    #   "d",
-    #   "e",
-    #   "f",
-    #   "g",
-    #   "h",
-    #   "i",
-    #   "j",
-    #   "k",
-    #   "l",
-    #   "m",
-    #   "n",
-    #   "o",
-    #   "p",
-    #   "q",
-    #   "r",
-    #   "s",
-    #   "t",
-    #   "u",
-    #   "v",
-    #   "w",
-    #   "x",
-    #   "y",
-    #   "z"
-    # ]
 
-    # ROUTER = ??
-    # DYNAMIC_NODE_MANAGEMENT == ?
     {:ok, _pid} = GenServer.start_link(__MODULE__, {index, new_id, numRequestToSend, neighborMap})
   end
 
@@ -159,9 +99,9 @@ defmodule TAPNODE do
   def handle_cast({:addToTapestry}, state) do
     # state = :sys.get_state(childPid)
     # state = index, new_id, numRequestToSend, neighborMap
-    index = elem(state, 0)
+    # index = elem(state, 0)
     new_id = elem(state, 1)
-    numRequestToSend = elem(state, 2)
+    # numRequestToSend = elem(state, 2)
     # neighborMap = elem(state, 3)
     # IO.inspect(new_id, label: "#{index}'s new_id is")
 
@@ -184,16 +124,20 @@ defmodule TAPNODE do
 
   # Server
   @impl true
-  def handle_cast({:receiveHello, n_id, neighbor_id}, state) do
-    # IO.puts("Received Hello from #{neighbor_id}")
-    new_state = placeInNeighborMap(n_id, state, neighbor_id)
-    IO.inspect(new_state, label: "new_state")
-    {:noreply, state}
+  def handle_cast({:receiveHello, neighbor_pid, neighbor_id}, state) do
+    my_id = elem(state, 1)
+    IO.puts("#{my_id} received Hello from #{neighbor_id}")
+    IO.inspect(state, label: "My old state")
+
+    new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
+    IO.inspect(new_state, label: "My new state")
+
+    {:noreply, new_state}
   end
 
   # Server
   @impl true
-  def handle_cast({:receiveNeighborMap, n_id, n_neighborMap}, state) do
+  def handle_cast({:receiveNeighborMap, _n_id, _n_neighborMap}, _state) do
   end
 
   ################# CLIENT ######################
@@ -208,28 +152,28 @@ defmodule TAPNODE do
     GenServer.cast(childPid, {:addToTapestry})
   end
 
-  def contactGatewayNode(new_id, childPid) do
+  def contactGatewayNode(_new_id, childPid) do
     children = DynamicSupervisor.which_children(TAPESTRY)
     # get a node from supervisor that is not yourself--> surrogate root
     {_, neighbor_id, _, _} = Enum.at(children, 1)
 
     if neighbor_id != childPid do
       # Returns Node G id
-      nodeG = neighbor_id
+      _nodeG = neighbor_id
     else
       {_, neighbor_id, _, _} = Enum.at(children, 0)
 
       # Returns Node G state
-      nodeG = neighbor_id
+      _nodeG = neighbor_id
     end
   end
 
   # stopping condition --> last level
-  def hNodeToRoute(hNode, i, new_id) when i == 40 do
+  def hNodeToRoute(_hNode, i, _new_id) when i == 40 do
     # copy everything but recursion from below
   end
 
-  def hNodeToRoute(hNode, i, new_id) do
+  def hNodeToRoute(hNode, _i, new_id) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello?
     TAPNODE.sendHello(hNode, self(), new_id)
@@ -257,16 +201,12 @@ defmodule TAPNODE do
   def baseOfIDLoop(j) when j == 40 do
     # Fill in jth level of MY neighbor map
     # updateYourNeighborMap()
-    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
-    # dist()
     # H = NextHop(i+1, new_id);
   end
 
-  def baseOfIDLoop(j) do
+  def baseOfIDLoop(_j) do
     # Fill in jth level of MY neighbor map
     # updateYourNeighborMap()
-    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
-    # dist()
     # H = NextHop(i+1, new_id);
     # new_j = j + 1
     # baseOfIDLoop(new_j)
@@ -277,16 +217,16 @@ defmodule TAPNODE do
     # sec.neighbors=neigh−>sec.neighbors(i,j);
   end
 
-  def routeToCurrentSurrogate(surrogate_Node) do
+  def routeToCurrentSurrogate(_surrogate_Node) do
     # routes to the current surrogate for new_id, and moves data meant for new_id to N
   end
 
-  def routeToObject(new_id) do
+  def routeToObject(_new_id) do
     # Return root node of where object is (or would be) located
     # Uses nextHop function?
   end
 
-  def nextHop(n, G) do
+  def nextHop(_n, G) do
     # if n = MaxHop(R) then
     #   return self
     # else
@@ -304,13 +244,8 @@ defmodule TAPNODE do
   end
 
   def updateYourNeighborMap() do
-    # For (i=0;i<digits && H(i) !=NULL;){
-    # 1.	Send Hello(i) to H(i)
-    # 2.	Send NeighborMap’(i)
-    # 3.	NM(i) = Optimize N.M.’(i)
-    # 4.	Hi + 1 = LookupNM(N, i+1)
-    # 5.	H = Hi+1
-    # }
+    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
+    # dist()
   end
 
   def sendHello(neighbor_id, n_id, new_id) do
@@ -320,7 +255,6 @@ defmodule TAPNODE do
 
   def sendNeighborMap(neighbor_id, n_pid) do
     # Neighbor new_neighbor sends its neighbor map to Node N
-    state = :sys.get_state(n_pid)
     # state = index, new_id, numRequestToSend, neighborMap
     # n_neighborMap = elem(state, 3)
     n_neighborMap = []
@@ -337,55 +271,50 @@ defmodule TAPNODE do
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
   end
 
-  def placeInNeighborMap(neighbor_pid, my_state, neighbor_id) do
-    IO.inspect(neighbor_id, label: "neighbor_id")
-
+  def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
     my_id = elem(my_state, 1)
-    IO.inspect(my_id, label: "my_id")
-
     my_neighborMap = elem(my_state, 3)
-    IO.inspect(my_neighborMap, label: "my_neighborMap")
+
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
 
+    # find i
     i =
       if j > 0 do
         j_corrected = j - 1
         IO.puts("Length of most in common prefix #{j_corrected}")
 
         prefix = String.slice(my_id, 0..j_corrected)
-        IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix}")
+
         # find i
         i_index = j_corrected + 1
         i = String.at(neighbor_id, i_index)
-        IO.puts("i for #{neighbor_id} is: #{i}")
+        IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix} and i is: #{i}")
         i
       else
         # i is the first elemment
         i = String.at(neighbor_id, 0)
-        IO.puts("i for #{neighbor_id} is: #{i}")
         i
       end
 
     # Create dummy neighbor
     new_neighbor = [j, i, neighbor_id]
 
-    # Check if level j exists
+    # Check if level j exists & insert
     new_my_neighborMap =
       if Enum.any?(my_neighborMap, fn x ->
            x_j = elem(x, 0)
            x_j == j
          end) == true do
-        IO.puts("level j already exists")
+        # IO.puts("level j already exists")
       else
-        IO.puts("level j not here yet")
-        new_my_neighborMap = my_neighborMap ++ new_neighbor
+        # IO.puts("level j not here yet")
+        _new_my_neighborMap = my_neighborMap ++ new_neighbor
       end
 
-    IO.inspect(my_state, label: "My old state")
     # update state
     my_new_state = Tuple.delete_at(my_state, 3)
-    my_new_state = Tuple.insert_at(my_new_state, 3, new_my_neighborMap)
+    _my_new_state = Tuple.insert_at(my_new_state, 3, new_my_neighborMap)
   end
 
   def findJ(my_id, neighbor_id, j) do
@@ -394,7 +323,7 @@ defmodule TAPNODE do
     new_j = j + 1
 
     if prefixA == prefixB do
-      # IO.puts("It's A Match")
+      IO.puts("It's A Match")
       findJ(my_id, neighbor_id, new_j)
       new_j
     else
