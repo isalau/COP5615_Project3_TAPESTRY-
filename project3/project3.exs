@@ -183,24 +183,23 @@ defmodule TAPNODE do
     #
     # get neighbor map from h
     {_, _, _, h_neighbor_map} = h_state
-    # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+    IO.inspect(h_neighbor_map, label: "h_neighbor_map")
     # # check if  h_neighbor_map level is empty
-    # if h_neighbor_map != nil do
-    #   # check if  i level is empty --> terminate when null entry found
-    #   if checkIfLevelExists(h_neighbor_map, i) == true do
-    #     #     # Grab i level from h_neighbor_map;
-    #     #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-    #     #     # BUG: currently levels can only hold one neighbor, i think
-    #     #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-    #     #     # For (j=0; j<baseOfID; j++) {}
-    #     #     #   baseOfIDLoop(0)
-    #     #     #   new_i = i + 1
-    #     #     #   hNodeToRoute(hNode, i, new_i, state)
-    #     #     # end
-    #   else
-    #   end
-    # else
-    # end
+    if h_neighbor_map != nil do
+      # check if  i level is empty --> terminate when null entry found
+      if checkIfLevelExists(h_neighbor_map, i) == true do
+        # Grab i level from h_neighbor_map;
+        i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+        IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+        #     #     # For (j=0; j<baseOfID; j++) {}
+        #     #     #   baseOfIDLoop(0)
+        #     #     #   new_i = i + 1
+        #     #     #   hNodeToRoute(hNode, i, new_i, state)
+        #     #     # end
+      else
+      end
+    else
+    end
   end
 
   def getHState(h_node_pid) do
@@ -228,15 +227,7 @@ defmodule TAPNODE do
   end
 
   def getLevelI(h_neighbor_map, i) do
-    Enum.any?(h_neighbor_map, fn neighbor ->
-      # IO.puts("neighbor level is #{neighbor}")
-      neighbor_i = Enum.at(neighbor, 0)
-
-      if neighbor_i == i do
-        # IO.puts("returning level i")
-        neighbor
-      end
-    end)
+    Map.get(h_neighbor_map, i)
   end
 
   # stopping condition --> last level
@@ -369,8 +360,6 @@ defmodule TAPNODE do
     # update state
     temp_state = Tuple.delete_at(my_state, 3)
     my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
-    # IO.inspect(my_new_state, label: "I'm")
-    # my_new_state
   end
 
   def findJ(my_id, neighbor_id, j) do
@@ -401,11 +390,11 @@ defmodule TAPNODE do
 
     {current_neighbors, updateedNeighborMap} =
       Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
-        IO.inspect(current_neighbors, label: "current_neighbors")
+        # IO.inspect(current_neighbors, label: "current_neighbors")
         {current_neighbors, new_neighbor}
       end)
 
-    IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
+    # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
     updateedNeighborMap
   end
 end
