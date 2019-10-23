@@ -127,7 +127,7 @@ defmodule TAPNODE do
     my_id = elem(state, 1)
     # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
-    new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
+    new_state = placeInNeighborMap(state, neighbor_id)
     IO.inspect(new_state, label: "new state")
 
     {:reply, new_state, new_state}
@@ -173,7 +173,7 @@ defmodule TAPNODE do
   #   # copy everything but recursion from below
   # end
 
-  def hNodeToRoute(h_node_pid, i, my_id, _my_state) do
+  def hNodeToRoute(h_node_pid, i, my_id, my_state) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
@@ -182,19 +182,25 @@ defmodule TAPNODE do
     #
     # get neighbor map from h
     {_, _, _, h_neighbor_map} = h_state
-    # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+
     # # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
       # check if  i level is empty --> terminate when null entry found
-      if checkIfLevelExists(h_neighbor_map, i) == true do
+      if checkIfLevelIExists(h_neighbor_map, i) == true do
         # Grab i level from h_neighbor_map;
-        i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-        # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-        #     #     # For (j=0; j<baseOfID; j++) {}
-        #     #     #   baseOfIDLoop(0)
-        #     #     #   new_i = i + 1
-        #     #     #   hNodeToRoute(hNode, i, new_i, state)
-        #     #     # end
+        i_level = getLevelI(h_neighbor_map, i)
+        # IO.inspect(i_level, label: "level #{i} NeighborMap_i from H")
+        # get every item in that level and add to my neighbor list
+        Enum.each(i_level, fn x ->
+          neighbor_id = Enum.at(x, 1)
+          placeInNeighborMap(my_state, neighbor_id)
+        end)
+
+        # For (j=0; j<baseOfID; j++) {}
+        # baseOfIDLoop(0)
+        # new_i = i + 1
+        # hNodeToRoute(hNode, i, new_i, state)
+        # end
       else
       end
     else
@@ -205,28 +211,24 @@ defmodule TAPNODE do
     h_state = GenServer.call(h_node_pid, {:getHState}, :infinity)
   end
 
-  def checkIfLevelExists(h_neighbor_map, i) do
+  def checkIfLevelIExists(h_neighbor_map, i) do
     if(Enum.count(h_neighbor_map) > 0) do
       if Map.has_key?(h_neighbor_map, i) == true do
-        #   if Enum.any?(h_neighbor_map, fn neighbor ->
-        # IO.inspect(h_neighbor_map, label: "neighbor level is")
-        #        x_j = Enum.at(neighbor, 0)
-        #        x_j == i
-        #      end) == true do
-        # IO.puts("level i already exists")
         true
       else
-        # IO.puts("level i not here yet")
         false
       end
     else
-      # IO.puts("level i not here yet")
       false
     end
   end
 
   def getLevelI(h_neighbor_map, i) do
-    Map.get(h_neighbor_map, i)
+    i_level_neighbor_map = Map.fetch(h_neighbor_map, i)
+
+    # IO.inspect(i_level_neighbor_map, label: "#{i}th level NeighborMap_i from H")
+    {_, i_level} = i_level_neighbor_map
+    i_level
   end
 
   # stopping condition --> last level
@@ -298,71 +300,79 @@ defmodule TAPNODE do
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
   end
 
-  def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
+  def placeInNeighborMap(my_state, neighbor_id) do
+    IO.inspect(neighbor_id, label: "neighbor_id")
     my_id = elem(my_state, 1)
-    my_neighborMap = elem(my_state, 3)
 
-    # find j - compare characters to find what level it belongs to
-    j = findJ(my_id, neighbor_id, 0)
+    if(my_id != neighbor_id) do
+      my_neighborMap = elem(my_state, 3)
 
-    # find i
-    i =
-      if j > 0 do
-        j_corrected = j - 1
-        # IO.puts("Length of most in common prefix #{j_corrected}")
+      # find j - compare characters to find what level it belongs to
+      j = findJ(my_id, neighbor_id, 0)
 
-        prefix = String.slice(my_id, 0..j_corrected)
+      # find i
+      i =
+        if j > 0 do
+          j_corrected = j - 1
+          # IO.puts("Length of most in common prefix #{j_corrected}")
 
-        # find i
-        i_index = j_corrected + 1
-        i = String.at(neighbor_id, i_index)
-        # IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix} and i is: #{i}")
-        i
-      else
-        # i is the first elemment
-        i = String.at(neighbor_id, 0)
-        i
-      end
+          prefix = String.slice(my_id, 0..j_corrected)
 
-    # Create dummy neighbor
-    new_neighbor = %{j => [i, neighbor_id]}
+          # find i
+          i_index = j_corrected + 1
+          i = String.at(neighbor_id, i_index)
 
-    # Check if level j exists & insert
-    new_my_neighborMap =
-      if(my_neighborMap != nil) do
-        if Map.has_key?(my_neighborMap, j) == true do
-          # if Enum.any?(my_neighborMap, fn x ->
-          # IO.inspect(j, label: "j")
-          # level_j = Enum.at(x, 0)
-          # IO.puts("level_j is #{level_j}")
-          # x_j = Enum.at(level_j, 0)
-          # IO.puts("x_j is #{x_j}")
-          # x_j == j
-          # end) == true do
+          # IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix} and i is: #{i}")
+          i
+        else
+          # i is the first elemment
+          i = String.at(neighbor_id, 0)
+          i
+        end
 
-          # _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
-          new_neighbor = [i, neighbor_id]
-          _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
+      # Create dummy neighbor
+      new_neighbor = %{j => [i, neighbor_id]}
+
+      # Check if level j exists & insert
+      new_my_neighborMap =
+        if(my_neighborMap != nil) do
+          if Map.has_key?(my_neighborMap, j) == true do
+            # if Enum.any?(my_neighborMap, fn x ->
+            # IO.inspect(j, label: "level j")
+            # level_j = Enum.at(x, 0)
+            # IO.puts("level_j is #{level_j}")
+            # x_j = Enum.at(level_j, 0)
+            # IO.puts("x_j is #{x_j}")
+            # x_j == j
+            # end) == true do
+
+            # _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
+            new_neighbor = [i, neighbor_id]
+            _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
+          else
+            # IO.puts("level j not here yet")
+
+            # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
+            _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
+          end
         else
           # IO.puts("level j not here yet")
-
           # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
           _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
         end
-      else
-        # IO.puts("level j not here yet")
-        # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
-        _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
-      end
 
-    # update state
-    temp_state = Tuple.delete_at(my_state, 3)
-    my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
+      # update state
+      temp_state = Tuple.delete_at(my_state, 3)
+      my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
+    end
   end
 
   def findJ(my_id, neighbor_id, j) do
+    # IO.inspect(j, label: "in findJ with #{my_id} and #{neighbor_id}")
     prefixA = String.slice(my_id, 0..j)
+    # IO.inspect(prefixA, label: "prefixA")
     prefixB = String.slice(neighbor_id, 0..j)
+    # IO.inspect(prefixB, label: "prefixB")
     new_j = j + 1
 
     if prefixA == prefixB do
@@ -388,12 +398,12 @@ defmodule TAPNODE do
 
     {current_neighbors, updateedNeighborMap} =
       Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
-        IO.inspect(current_neighbors, label: "current_neighbors")
+        # IO.inspect(current_neighbors, label: "current_neighbors")
         update = current_neighbors ++ [new_neighbor]
         {current_neighbors, update}
       end)
 
-    IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
+    # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
     updateedNeighborMap
   end
 end
