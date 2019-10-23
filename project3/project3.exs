@@ -77,7 +77,7 @@ defmodule TAPNODE do
 
     numRequestToSend = numRequests
 
-    neighborMap = []
+    neighborMap = %{}
 
     {:ok, _pid} = GenServer.start_link(__MODULE__, {index, new_id, numRequestToSend, neighborMap})
   end
@@ -138,7 +138,6 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:getHState}, _from, state) do
     # getting state
-    IO.inspect(state, label: "h_state")
     {:reply, state, state}
   end
 
@@ -179,30 +178,29 @@ defmodule TAPNODE do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
-    # BUG: it's not waiting for ^ to finish so neighbor map is empty
 
-    # h_state = getHState(h_node_pid)
+    h_state = getHState(h_node_pid)
     #
-    # # get neighbor map from h
-    # {_, _, _, h_neighbor_map} = h_state
-    # # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+    # get neighbor map from h
+    {_, _, _, h_neighbor_map} = h_state
+    # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
     # # check if  h_neighbor_map level is empty
-    # if Enum.count(h_neighbor_map) > 0 do
-    #   # check if  i level is empty --> terminate when null entry found
-    #   if checkIfLevelExists(h_neighbor_map, i) == true do
-    #     # Grab i level from h_neighbor_map;
-    #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-    #     # BUG: currently levels can only hold one neighbor, i think
-    #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-    #     # For (j=0; j<baseOfID; j++) {}
-    #     #   baseOfIDLoop(0)
-    #     #   new_i = i + 1
-    #     #   hNodeToRoute(hNode, i, new_i, state)
-    #     # end
-    #   else
-    #   end
-    # else
-    # end
+    if h_neighbor_map != nil do
+      # check if  i level is empty --> terminate when null entry found
+      if checkIfLevelExists(h_neighbor_map, i) == true do
+        #     # Grab i level from h_neighbor_map;
+        #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+        #     # BUG: currently levels can only hold one neighbor, i think
+        #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+        #     # For (j=0; j<baseOfID; j++) {}
+        #     #   baseOfIDLoop(0)
+        #     #   new_i = i + 1
+        #     #   hNodeToRoute(hNode, i, new_i, state)
+        #     # end
+      else
+      end
+    else
+    end
   end
 
   def getHState(h_node_pid) do
@@ -210,22 +208,23 @@ defmodule TAPNODE do
   end
 
   def checkIfLevelExists(h_neighbor_map, i) do
-    # if(Enum.count(h_neighbor_map) > 0) do
-    #   if Enum.any?(h_neighbor_map, fn neighbor ->
-    #        IO.puts("neighbor level is #{neighbor}")
-    #        x_j = Enum.at(neighbor, 0)
-    #        x_j == i
-    #      end) == true do
-    #     # IO.puts("level i already exists")
-    #     true
-    #   else
-    #     # IO.puts("level i not here yet")
-    #     false
-    #   end
-    # else
-    #   # IO.puts("level i not here yet")
-    #   false
-    # end
+    if(Enum.count(h_neighbor_map) > 0) do
+      if Map.has_key?(h_neighbor_map, i) == true do
+        #   if Enum.any?(h_neighbor_map, fn neighbor ->
+        IO.inspect(h_neighbor_map, label: "neighbor level is")
+        #        x_j = Enum.at(neighbor, 0)
+        #        x_j == i
+        #      end) == true do
+        IO.puts("level i already exists")
+        true
+      else
+        IO.puts("level i not here yet")
+        false
+      end
+    else
+      IO.puts("level i not here yet")
+      false
+    end
   end
 
   def getLevelI(h_neighbor_map, i) do
@@ -255,11 +254,6 @@ defmodule TAPNODE do
     # baseOfIDLoop(new_j)
   end
 
-  def dist() do
-    # neigh=sec.neighbor;
-    # sec.neighbors=neigh−>sec.neighbors(i,j);
-  end
-
   def routeToCurrentSurrogate(_surrogate_Node) do
     # routes to the current surrogate for new_id, and moves data meant for new_id to N
   end
@@ -286,9 +280,9 @@ defmodule TAPNODE do
     # endif
   end
 
-  def updateYourNeighborMap() do
-    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
-    # dist()
+  def dist() do
+    # neigh=sec.neighbor;
+    # sec.neighbors=neigh−>sec.neighbors(i,j);
   end
 
   def sendHello(neighbor_id, n_id, new_id) do
@@ -317,7 +311,8 @@ defmodule TAPNODE do
   def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
     my_id = elem(my_state, 1)
     my_neighborMap = elem(my_state, 3)
-
+    IO.inspect(my_neighborMap, label: "#{my_id} my_neighborMap is")
+    # IO.puts(" #{my_neighborMap}")
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
 
@@ -341,35 +336,42 @@ defmodule TAPNODE do
       end
 
     # Create dummy neighbor
-    new_neighbor = [j, i, neighbor_id]
+    new_neighbor = %{j => [i, neighbor_id]}
 
     # Check if level j exists & insert
     new_my_neighborMap =
       if(my_neighborMap != nil) do
-        if Enum.any?(my_neighborMap, fn x ->
-             # IO.puts("x is #{x}")
-             x_j = Enum.at(x, 0)
-             x_j == j
-           end) == true do
+        if Map.has_key?(my_neighborMap, j) == true do
+          # if Enum.any?(my_neighborMap, fn x ->
+          # IO.puts("x is #{x}")
+          # level_j = Enum.at(x, 0)
+          # IO.puts("level_j is #{level_j}")
+          # x_j = Enum.at(level_j, 0)
+          # IO.puts("x_j is #{x_j}")
+          # x_j == j
+          # end) == true do
           # IO.puts("level j already exists")
-          # updateYourNeighborMap()
-          _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
+
+          # _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
+          _new_my_neighborMap = updateYourNeighborMap(my_neighborMap, new_neighbor)
         else
           # IO.puts("level j not here yet")
-          _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
+          _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
+          # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
         end
       else
         # IO.puts("level j not here yet")
-        _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
+        # _new_my_neighborMap = my_neighborMap ++ [[new_neighbor]]
+        _new_my_neighborMap = Map.put(my_neighborMap, j, [i, neighbor_id])
       end
 
-    IO.inspect(new_my_neighborMap, label: "new_my_neighborMap")
+    # IO.inspect(new_my_neighborMap, label: "new_my_neighborMap")
 
     # update state
     temp_state = Tuple.delete_at(my_state, 3)
     my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
-    IO.inspect(my_new_state, label: "I'm")
-    my_new_state
+    # IO.inspect(my_new_state, label: "I'm")
+    # my_new_state
   end
 
   def findJ(my_id, neighbor_id, j) do
@@ -384,6 +386,33 @@ defmodule TAPNODE do
     else
       j
     end
+  end
+
+  def updateYourNeighborMap(my_neighborMap, new_neighbor) do
+    IO.inspect(new_neighbor, label: "new_neighbor")
+    j = Enum.at(new_neighbor, 0)
+    i = Enum.at(new_neighbor, 1)
+    neighbor_id = Enum.at(new_neighbor, 2)
+
+    # get j level
+    IO.inspect(my_neighborMap, label: "my_neighborMap")
+
+    level =
+      Enum.find(my_neighborMap, nil, fn level ->
+        IO.inspect(level, label: "level")
+        first_level_neighbor = Enum.at(level, 0)
+        IO.inspect(first_level_neighbor, label: "first_level_neighbor")
+        first_level_index = Enum.at(first_level_neighbor, 0)
+        IO.inspect(first_level_index, label: "first_level_index")
+
+        first_level_index == j
+      end)
+
+    # update j level
+    new_j_level = [new_neighbor | level]
+    # do the distance formula thing
+    # While (Dist(N, NM_i(j, neigh)) > min(eachDist(N, NM_i(j, sec.neigh)))) {}
+    # dist()
   end
 end
 
