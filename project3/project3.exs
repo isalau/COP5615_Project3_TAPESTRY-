@@ -16,7 +16,7 @@ defmodule MAINPROJ do
 
     for x <- rng do
       TAPESTRY.start_child(x, numRequests)
-      IO.puts("Child #{x} started")
+      # IO.puts("Child #{x} started")
     end
 
     ################# CREATE OVERLAY NETWORK  ######################
@@ -40,12 +40,12 @@ defmodule TAPESTRY do
   use DynamicSupervisor
 
   def start_link(index) do
-    IO.puts("Its #{index} here in DynamicSupervisor")
+    # IO.puts("Its #{index} here in DynamicSupervisor")
     {:ok, _pid} = DynamicSupervisor.start_link(__MODULE__, index, name: __MODULE__)
   end
 
   def start_child(index, numRequests) do
-    IO.puts("DynamicSupervisor adding #{index} child")
+    # IO.puts("DynamicSupervisor adding #{index} child")
 
     child_spec =
       Supervisor.child_spec({TAPNODE, [index, numRequests]},
@@ -73,7 +73,7 @@ defmodule TAPNODE do
     random_number = :rand.uniform(10000)
     sha = :crypto.hash(:sha, "#{random_number}")
     new_id = sha |> Base.encode16()
-    IO.inspect(new_id, label: "sha 1 output")
+    # IO.inspect(new_id, label: "sha 1 output")
 
     numRequestToSend = numRequests
 
@@ -102,7 +102,7 @@ defmodule TAPNODE do
   # Server
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
-    IO.inspect(state, label: "state")
+    IO.inspect(state, label: "my state")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
 
@@ -126,18 +126,19 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:receiveHello, neighbor_pid, neighbor_id}, _from, state) do
     my_id = elem(state, 1)
-    IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
+    # IO.inspect(state, label: "#{my_id} received Hello from #{neighbor_id}. My old state")
 
     new_state = placeInNeighborMap(neighbor_pid, state, neighbor_id)
     IO.inspect(new_state, label: "#{my_id} new state")
 
-    {:reply, state, state}
+    {:reply, new_state, new_state}
   end
 
   # Server
   @impl true
   def handle_call({:getHState}, _from, state) do
     # getting state
+    IO.inspect(state, label: "h_state")
     {:reply, state, state}
   end
 
@@ -178,30 +179,30 @@ defmodule TAPNODE do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     # QUESTION: Can I send direct hello like this?
     TAPNODE.sendHello(h_node_pid, self(), my_id)
+    # BUG: it's not waiting for ^ to finish so neighbor map is empty
 
-    h_state = getHState(h_node_pid)
-    IO.inspect(h_state, label: "h_state")
-
-    # get neighbor map from h
-    {_, _, _, h_neighbor_map} = h_state
-    IO.inspect(h_neighbor_map, label: "h_neighbor_map")
-    # check if  h_neighbor_map level is empty
-    if Enum.count(h_neighbor_map) > 0 do
-      # check if  i level is empty --> terminate when null entry found
-      if checkIfLevelExists(h_neighbor_map, i) == true do
-        # Grab i level from h_neighbor_map;
-        i_level_neighbor_map = getLevelI(h_neighbor_map, i)
-        # BUG: currently levels can only hold one neighbor, i think
-        IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
-        # For (j=0; j<baseOfID; j++) {}
-        #   baseOfIDLoop(0)
-        #   new_i = i + 1
-        #   hNodeToRoute(hNode, i, new_i, state)
-        # end
-      else
-      end
-    else
-    end
+    # h_state = getHState(h_node_pid)
+    #
+    # # get neighbor map from h
+    # {_, _, _, h_neighbor_map} = h_state
+    # # IO.inspect(h_neighbor_map, label: "h_neighbor_map")
+    # # check if  h_neighbor_map level is empty
+    # if Enum.count(h_neighbor_map) > 0 do
+    #   # check if  i level is empty --> terminate when null entry found
+    #   if checkIfLevelExists(h_neighbor_map, i) == true do
+    #     # Grab i level from h_neighbor_map;
+    #     i_level_neighbor_map = getLevelI(h_neighbor_map, i)
+    #     # BUG: currently levels can only hold one neighbor, i think
+    #     # IO.puts("ith level NeighborMap_i from H: #{i_level_neighbor_map}")
+    #     # For (j=0; j<baseOfID; j++) {}
+    #     #   baseOfIDLoop(0)
+    #     #   new_i = i + 1
+    #     #   hNodeToRoute(hNode, i, new_i, state)
+    #     # end
+    #   else
+    #   end
+    # else
+    # end
   end
 
   def getHState(h_node_pid) do
@@ -209,31 +210,31 @@ defmodule TAPNODE do
   end
 
   def checkIfLevelExists(h_neighbor_map, i) do
-    if(Enum.count(h_neighbor_map) > 0) do
-      if Enum.any?(h_neighbor_map, fn x ->
-           IO.puts("x is #{x}")
-           x_j = Enum.at(x, 0)
-           x_j == i
-         end) == true do
-        IO.puts("level i already exists")
-        true
-      else
-        IO.puts("level i not here yet")
-        false
-      end
-    else
-      IO.puts("level i not here yet")
-      false
-    end
+    # if(Enum.count(h_neighbor_map) > 0) do
+    #   if Enum.any?(h_neighbor_map, fn neighbor ->
+    #        IO.puts("neighbor level is #{neighbor}")
+    #        x_j = Enum.at(neighbor, 0)
+    #        x_j == i
+    #      end) == true do
+    #     # IO.puts("level i already exists")
+    #     true
+    #   else
+    #     # IO.puts("level i not here yet")
+    #     false
+    #   end
+    # else
+    #   # IO.puts("level i not here yet")
+    #   false
+    # end
   end
 
   def getLevelI(h_neighbor_map, i) do
     Enum.any?(h_neighbor_map, fn neighbor ->
-      IO.puts("neighbor level is #{neighbor}")
+      # IO.puts("neighbor level is #{neighbor}")
       neighbor_i = Enum.at(neighbor, 0)
 
       if neighbor_i == i do
-        IO.puts("returning level i")
+        # IO.puts("returning level i")
         neighbor
       end
     end)
@@ -316,7 +317,6 @@ defmodule TAPNODE do
   def placeInNeighborMap(_neighbor_pid, my_state, neighbor_id) do
     my_id = elem(my_state, 1)
     my_neighborMap = elem(my_state, 3)
-    IO.inspect(my_state, label: "my state")
 
     # find j - compare characters to find what level it belongs to
     j = findJ(my_id, neighbor_id, 0)
@@ -325,14 +325,14 @@ defmodule TAPNODE do
     i =
       if j > 0 do
         j_corrected = j - 1
-        IO.puts("Length of most in common prefix #{j_corrected}")
+        # IO.puts("Length of most in common prefix #{j_corrected}")
 
         prefix = String.slice(my_id, 0..j_corrected)
 
         # find i
         i_index = j_corrected + 1
         i = String.at(neighbor_id, i_index)
-        IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix} and i is: #{i}")
+        # IO.puts("Common prefix between #{my_id} and #{neighbor_id} is #{prefix} and i is: #{i}")
         i
       else
         # i is the first elemment
@@ -345,25 +345,31 @@ defmodule TAPNODE do
 
     # Check if level j exists & insert
     new_my_neighborMap =
-      if(Enum.count(my_neighborMap) > 0) do
+      if(my_neighborMap != nil) do
         if Enum.any?(my_neighborMap, fn x ->
-             IO.puts("x is #{x}")
+             # IO.puts("x is #{x}")
              x_j = Enum.at(x, 0)
              x_j == j
            end) == true do
-          IO.puts("level j already exists")
+          # IO.puts("level j already exists")
+          # updateYourNeighborMap()
+          _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
         else
-          IO.puts("level j not here yet")
+          # IO.puts("level j not here yet")
           _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
         end
       else
-        IO.puts("level j not here yet")
+        # IO.puts("level j not here yet")
         _new_my_neighborMap = my_neighborMap ++ [new_neighbor]
       end
 
+    IO.inspect(new_my_neighborMap, label: "new_my_neighborMap")
+
     # update state
     temp_state = Tuple.delete_at(my_state, 3)
-    _my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
+    my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
+    IO.inspect(my_new_state, label: "I'm")
+    my_new_state
   end
 
   def findJ(my_id, neighbor_id, j) do
