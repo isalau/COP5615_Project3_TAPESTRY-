@@ -198,13 +198,11 @@ defmodule TAPNODE do
 
     # find prefix match length
     j = findJ(my_id, neighbor_id, 0)
-    # IO.inspect(j, label: "j is")
 
     # check if level exists
     if(checkIfLevelExists(my_neighbor_map, j) == true) do
       # go to that level on the Map
       level = getLevel(my_neighbor_map, j)
-      # IO.inspect(level, label: "level")
 
       # find i
       i = findI(my_id, neighbor_id, j)
@@ -214,14 +212,16 @@ defmodule TAPNODE do
 
       if Enum.member?(level, dummy_neighbor) == true do
         # route automatically there
-        IO.puts("I have them as a neighbor")
+        # IO.puts("I have them as a neighbor")
         msg = 1
         TAPNODE.sendDirectMessage(receiverPid, msg)
       else
         IO.puts("I don't have them as a neighbor")
+        # nextHop(neighbor_id, target_id, n, msg)
       end
     else
       IO.puts("I don't have them as a neighbor")
+      # nextHop(neighbor_id, target_id, n, msg)
     end
 
     {:noreply, state}
@@ -450,36 +450,34 @@ defmodule TAPNODE do
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
   end
 
-  def nextHop(_n, G) do
-    # if n = MaxHop(R) then
-    #   return self
-    # else
-    #   d <- Gn
-    #   e <- Rn,d
-    #   while d <- d_ 1 (modB)
-    #     e <-Rn,d
-    #   endwhile
-    #   if e - self then
-    #     return NextHop(n+1, G)
-    #   else
-    #     return e
-    #   endif
-    # endif
-  end
-
-  # stopping condition --> last level
-  def baseOfIDLoop(j) when j == 40 do
-    # Fill in jth level of MY neighbor map
-    # updateYourNeighborMap()
-    # H = NextHop(i+1, new_id);
-  end
-
-  def baseOfIDLoop(_j) do
-    # Fill in jth level of MY neighbor map
-    # updateYourNeighborMap()
-    # H = NextHop(i+1, new_id);
-    # new_j = j + 1
-    # baseOfIDLoop(new_j)
+  def nextHop(neighbor_id, target_id, n, msg) do
+    # look at level n of my neighbor_map
+    neighbor_state = GenServer.call(neighbor_id, {:getState}, :infinity)
+    {_, neighbor_id, _, neighbor_map} = neighbor_state
+    # check if level exists
+    if(checkIfLevelExists(neighbor_map, n) == true) do
+      # go to that level on the Map
+      level = getLevel(neighbor_map, n)
+      # look at index i (n+1) of level n
+      # if index_i of me(neighbor_id) == index_i of target
+      #   check if check I found direct neighbor
+      #   yes
+      #     print msg
+      IO.inspect("I received a message from nextHop and it took #{msg} hops")
+      #   no
+      #     n_new = n+ 1
+      #   new_msg = msg + 1
+      #   nextHop(neighbor_id, target_id, n_new, new_msg)
+      # else
+      #   n_new = n+ 1
+      #   new_msg = msg + 1
+      #   nextHop(neighbor_id, target_id, n_new, new_msg)
+      # end
+    else
+      #  n_new = n+ 1
+      #  new_msg = msg + 1
+      #  nextHop(neighbor_id, target_id, n_new, new_msg)
+    end
   end
 
   def routeToCurrentSurrogate(_surrogate_Node) do
