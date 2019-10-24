@@ -27,6 +27,11 @@ defmodule MAINPROJ do
       TAPNODE.addToTapestry(childPid)
     end
 
+    for x <- children do
+      {_, childPid, _, _} = x
+      TAPNODE.printState(childPid)
+    end
+
     keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
   end
@@ -98,8 +103,9 @@ defmodule TAPNODE do
     # IO.inspect(h_node_pid, label: "GatewayNode's pid is")
 
     # i is the level; 41 levels because 40 digits in id ???
-    new_state = hNodeToRoute(h_node_pid, 0, my_id)
-    IO.inspect(new_state, label: "\nAdded To Tapestry")
+    hNodeToRoute(h_node_pid, 0, my_id)
+    # new_state = :sys.get_state(self())
+    # IO.inspect(new_state, label: "\nAdded To Tapestry")
 
     {:reply, :ok, state}
   end
@@ -120,18 +126,27 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:getHNeighbors, i}, from, state) do
     pid = Kernel.inspect(self())
-    # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
+    IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
-    # # check if  h_neighbor_map level is empty
+    # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
       level_count = Enum.count(h_neighbor_map)
       level = 0
+      # go through every level of neighbor list
       levels(h_neighbor_map, level, from)
     end
 
-    {:reply, state, state}
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call({:printState}, _from, state) do
+    pid = Kernel.inspect(self())
+    IO.inspect(state, label: "\n My #{pid} State is")
+
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -198,7 +213,7 @@ defmodule TAPNODE do
   end
 
   def hNodeToRoute(h_node_pid, i, my_id) do
-    pid = Kernel.inspect(self())
+    # pid = Kernel.inspect(self())
     # IO.inspect(pid, label: "\nMy PiD ")
 
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
@@ -208,9 +223,11 @@ defmodule TAPNODE do
   end
 
   def getHNeighbors(h_node_pid, i) do
-    # pid = Kernel.inspect(self())
+    pid = Kernel.inspect(self())
     # IO.inspect(pid, label: "\nIn getHNeighbors client. My pid is ")
-    _new_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
+    GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
+    # IO.inspect(new_state, label: "\nAfter getHNeighbors")
+    # new_state
   end
 
   def checkIfLevelExists(h_neighbor_map, i) do
@@ -354,6 +371,10 @@ defmodule TAPNODE do
 
     # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
     updateedNeighborMap
+  end
+
+  def printState(childPid) do
+    GenServer.call(childPid, {:printState}, :infinity)
   end
 
   def routeNode(N, Exact) do
