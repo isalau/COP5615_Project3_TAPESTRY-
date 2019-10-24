@@ -114,28 +114,28 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:getHNeighbors, i}, from, state) do
-    IO.puts("\nIn getHNeighbors server")
+    # IO.puts("\nIn getHNeighbors server")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
     # # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
-      IO.puts("here 1")
+      # IO.puts("here 1")
       # check if  i level is empty --> terminate when null entry found
       if checkIfLevelIExists(h_neighbor_map, i) == true do
         # Grab i level from h_neighbor_map;
         i_level = getLevelI(h_neighbor_map, i)
         count = Enum.count(i_level)
         {from_pid, _ok} = from
-        IO.inspect(self(), label: "self")
-        IO.inspect(from_pid, label: "from_pid")
+        # IO.inspect(self(), label: "self")
+        # IO.inspect(from_pid, label: "from_pid")
         # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
         # get every item in that level and add to my neighbor list
 
         # Enum.each(i_level, fn x ->
-        IO.puts("here 2")
+        # IO.puts("here 2")
         GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
-        IO.puts("here 3")
+        # IO.puts("here 3")
         {:reply, state, state}
       else
         {:reply, state, state}
@@ -147,10 +147,10 @@ defmodule TAPNODE do
 
   @impl true
   def handle_cast({:LevelToLevel, i_level, count, _j}, state) do
-    IO.puts("In LevelToLevel server")
-    # IO.inspect(state, label: "\nMy state before H neighbors")
+    IO.puts("\nIn LevelToLevel server")
+    IO.inspect(state, label: "\nMy state before H neighbors")
     new_state = levelBylevel(i_level, state, count, 0)
-    # IO.inspect(new_state, label: "\nMy new state after H neighbors")
+    IO.inspect(new_state, label: "\nMy new state after H neighbors")
 
     {:noreply, new_state}
   end
