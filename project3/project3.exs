@@ -365,7 +365,8 @@ defmodule TAPNODE do
           {current_neighbors, current_neighbors}
         else
           update = current_neighbors ++ [new_neighbor]
-          {current_neighbors, update}
+          sorted_update = Enum.sort(update)
+          {current_neighbors, sorted_update}
         end
       end)
 
