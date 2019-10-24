@@ -28,8 +28,14 @@ defmodule MAINPROJ do
     end
 
     for x <- children do
+      {a, childPid, b, c} = x
+      # TAPNODE.printState(childPid)
+    end
+
+    for x <- children do
       {_, childPid, _, _} = x
-      TAPNODE.printState(childPid)
+      # get random child from supervisor
+      sendRandom(childPid)
     end
 
     keepAlive()
@@ -38,6 +44,18 @@ defmodule MAINPROJ do
 
   def keepAlive() do
     keepAlive()
+  end
+
+  def sendRandom(childPid) do
+    children = DynamicSupervisor.which_children(TAPESTRY)
+    randomChild = Enum.random(children)
+    {_, randomChildpid, _, _} = randomChild
+
+    if(randomChildpid == childPid) do
+      sendRandom(childPid)
+    else
+      TAPNODE.sendRequest(childPid, randomChildpid)
+    end
   end
 end
 
@@ -94,7 +112,7 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
     pid = Kernel.inspect(self())
-    IO.inspect(state, label: "\nMy #{pid} Initial State")
+    # IO.inspect(state, label: "\nMy #{pid} Initial State")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
 
@@ -126,7 +144,7 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:getHNeighbors, i}, from, state) do
     pid = Kernel.inspect(self())
-    IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
+    # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
@@ -144,9 +162,16 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:printState}, _from, state) do
     pid = Kernel.inspect(self())
-    IO.inspect(state, label: "\n My #{pid} State is")
+    # IO.inspect(state, label: "\n My #{pid} State is")
 
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call({:getState}, _from, state) do
+    pid = Kernel.inspect(self())
+    state
+    {:reply, state, state}
   end
 
   @impl true
@@ -166,13 +191,48 @@ defmodule TAPNODE do
     {:noreply, new_state}
   end
 
+  @impl true
+  def handle_cast({:sendMessage, receiverPid}, state) do
+    neighbor_state = GenServer.call(receiverPid, {:getState}, :infinity)
+    {_, neighbor_id, _, neighbor_map} = neighbor_state
+    {_, my_id, _, my_neighbor_map} = state
+
+    # find prefix match length
+    j = findJ(my_id, neighbor_id, 0)
+    # IO.inspect(j, label: "j is")
+
+    # check if level exists
+    if(checkIfLevelExists(my_neighbor_map, j) == true) do
+      # go to that level on the Map
+      level = getLevel(my_neighbor_map, j)
+      # IO.inspect(level, label: "level")
+
+      # find i
+      i = findI(my_id, neighbor_id, j)
+
+      # check to see if neighbor is in map
+      dummy_neighbor = [i, neighbor_id]
+
+      if Enum.member?(level, dummy_neighbor) == true do
+        # route automatically there
+        IO.puts("I have them as a neighbor")
+      else
+        IO.puts("I don't have them as a neighbor")
+      end
+    else
+      IO.puts("I don't have them as a neighbor")
+    end
+
+    {:noreply, state}
+  end
+
   ################# CLIENT ######################
 
   def levels(h_neighbor_map, level, from) do
     # check if  i level is empty --> terminate when null entry found
     if checkIfLevelExists(h_neighbor_map, level) == true do
       # Grab i level from h_neighbor_map;
-      i_level = getLevelI(h_neighbor_map, level)
+      i_level = getLevel(h_neighbor_map, level)
       count = Enum.count(i_level)
       {from_pid, _ok} = from
       # IO.inspect(self(), label: "self")
@@ -242,7 +302,7 @@ defmodule TAPNODE do
     end
   end
 
-  def getLevelI(h_neighbor_map, i) do
+  def getLevel(h_neighbor_map, i) do
     i_level_neighbor_map = Map.fetch(h_neighbor_map, i)
 
     # IO.inspect(i_level_neighbor_map, label: "#{i}th level NeighborMap_i from H")
@@ -422,6 +482,26 @@ defmodule TAPNODE do
   def routeToObject(_new_id) do
     # Return root node of where object is (or would be) located
     # Uses nextHop function?
+  end
+
+  def sendRequest(senderPid, receiverPid) do
+    GenServer.cast(senderPid, {:sendMessage, receiverPid})
+  end
+
+  def findI(senderPid, receiverPid, j) do
+    i =
+      if j > 0 do
+        j_corrected = j - 1
+        # IO.puts("Length of most in common prefix #{j_corrected}")
+        _prefix = String.slice(senderPid, 0..j_corrected)
+        i_index = j_corrected + 1
+        i = String.at(receiverPid, i_index)
+      else
+        # i is the first elemment
+        i = String.at(receiverPid, 0)
+      end
+
+    i
   end
 end
 
