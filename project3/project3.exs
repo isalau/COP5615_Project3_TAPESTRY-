@@ -27,16 +27,16 @@ defmodule MAINPROJ do
       TAPNODE.addToTapestry(childPid)
     end
 
-    # for x <- children do
-    # {_, childPid, _, _} = x
-    # TAPNODE.printState(childPid)
-    # end
-
     for x <- children do
       {_, childPid, _, _} = x
-      # get random child from supervisor
-      sendRandom(childPid)
+      TAPNODE.printState(childPid)
     end
+
+    # for x <- children do
+    #   {_, childPid, _, _} = x
+    #   # get random child from supervisor
+    #   sendRandom(childPid)
+    # end
 
     keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
@@ -101,12 +101,19 @@ defmodule TAPNODE do
 
     neighborMap = %{}
 
-    {:ok, _pid} = GenServer.start_link(__MODULE__, {index, new_id, numRequestToSend, neighborMap})
+    objectList = []
+    objectLinksList = []
+
+    {:ok, _pid} =
+      GenServer.start_link(
+        __MODULE__,
+        {index, new_id, numRequestToSend, neighborMap, objectList, objectLinksList}
+      )
   end
 
   @impl true
-  def init({index, new_id, numRequestToSend, neighborMap}) do
-    {:ok, {index, new_id, numRequestToSend, neighborMap}}
+  def init({index, new_id, numRequestToSend, neighborMap, objectList, objectLinksList}) do
+    {:ok, {index, new_id, numRequestToSend, neighborMap, objectList, objectLinksList}}
   end
 
   @impl true
@@ -146,7 +153,7 @@ defmodule TAPNODE do
     _pid = Kernel.inspect(self())
     # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
     # get neighbor map from h
-    {_, _neighbor_id, _, h_neighbor_map} = state
+    {_, _neighbor_id, _, h_neighbor_map, _, _} = state
 
     # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
@@ -161,8 +168,8 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:printState}, _from, state) do
-    # _pid = Kernel.inspect(self())
-    # IO.inspect(state, label: "\n My #{pid} State is")
+    pid = Kernel.inspect(self())
+    IO.inspect(state, label: "\n My #{pid} State is")
 
     {:reply, :ok, state}
   end
@@ -194,7 +201,7 @@ defmodule TAPNODE do
   def handle_cast({:sendMessage, receiverPid}, state) do
     neighbor_state = GenServer.call(receiverPid, {:getState}, :infinity)
     {_, neighbor_id, _, _neighbor_map} = neighbor_state
-    {_, my_id, _, my_neighbor_map} = state
+    {_, my_id, _, my_neighbor_map, _, _} = state
 
     # find prefix match length
     j = findJ(my_id, neighbor_id, 0)
