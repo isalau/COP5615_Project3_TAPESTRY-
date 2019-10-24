@@ -216,6 +216,8 @@ defmodule TAPNODE do
       if Enum.member?(level, dummy_neighbor) == true do
         # route automatically there
         IO.puts("I have them as a neighbor")
+        msg = 1
+        TAPNODE.sendDirectMessage(receiverPid, msg)
       else
         IO.puts("I don't have them as a neighbor")
       end
@@ -223,6 +225,12 @@ defmodule TAPNODE do
       IO.puts("I don't have them as a neighbor")
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:receiveMessage, msg}, state) do
+    IO.inspect("I received a message and it took #{msg} hops")
     {:noreply, state}
   end
 
@@ -502,6 +510,10 @@ defmodule TAPNODE do
       end
 
     i
+  end
+
+  def sendDirectMessage(receiverPid, msg) do
+    GenServer.cast(receiverPid, {:receiveMessage, msg})
   end
 end
 
