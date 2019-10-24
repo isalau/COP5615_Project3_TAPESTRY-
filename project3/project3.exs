@@ -326,8 +326,13 @@ defmodule TAPNODE do
     {_current_neighbors, updateedNeighborMap} =
       Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
         # IO.inspect(current_neighbors, label: "current_neighbors")
-        update = current_neighbors ++ [new_neighbor]
-        {current_neighbors, update}
+        # check for duplicates
+        if Enum.member?(current_neighbors, new_neighbor) do
+          {current_neighbors, current_neighbors}
+        else
+          update = current_neighbors ++ [new_neighbor]
+          {current_neighbors, update}
+        end
       end)
 
     # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
