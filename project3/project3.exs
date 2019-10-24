@@ -139,7 +139,7 @@ defmodule TAPNODE do
 
   # Server
   @impl true
-  def handle_call({:getHNeighbors, i}, _from, state) do
+  def handle_call({:getHNeighbors, i}, from, state) do
     # getting state
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
@@ -151,11 +151,17 @@ defmodule TAPNODE do
         # Grab i level from h_neighbor_map;
         i_level = getLevelI(h_neighbor_map, i)
         count = Enum.count(i_level)
+        {from_pid, _ok} = from
+        # IO.inspect(from_pid, label: "from_pid")
+        GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
+        # GenServer.cast(from_pid, {:LevelToLevel, i_level, state, count, 0})
+
         # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
         # get every item in that level and add to my neighbor list
 
-        new_state = levelBylevel(i_level, state, count, 0)
-        # //call other gensserver back 
+        # new_state = levelBylevel(i_level, state, count, 0)
+        # //call other gensserver back
+
         # Enum.each(i_level, fn x ->
         #   # neighbor_id = Enum.at(x, 1)
         #   # pid = self()
@@ -164,14 +170,24 @@ defmodule TAPNODE do
         #   new_state = placeInNeighborMap(my_state, neighbor_id)
         # end)
 
-        IO.inspect(new_state, label: "\nMy New State after H neighbors")
-        {:reply, new_state, new_state}
+        {:reply, state, state}
       else
         {:reply, state, state}
       end
     else
       {:reply, state, state}
     end
+  end
+
+  # Server
+  @impl true
+  def handle_cast({:LevelToLevel, i_level, count, j}, state) do
+    # def handle_cast({:LevelToLevel, i_level, state, count, j}, state) do
+    IO.inspect(state, label: "\nMy state before H neighbors")
+    new_state = levelBylevel(i_level, state, count, 0)
+    IO.inspect(new_state, label: "\nMy new state after H neighbors")
+
+    {:noreply, new_state}
   end
 
   # Server
@@ -183,13 +199,13 @@ defmodule TAPNODE do
 
   def levelBylevel(i_level, my_state, count, j) do
     neighbor = Enum.at(i_level, j)
-    # IO.inspect(neighbor, label: "In #{j} levelBylevel neighbor ")
+    # IO.inspect(neighbor, label: "\nLevelBylevel neighbor ")
 
     neighbor_id = Enum.at(neighbor, 1)
-    # IO.inspect(neighbor_id, label: "In levelBylevel neighbor_id ")
+    # IO.inspect(neighbor_id, label: "LevelBylevel neighbor_id ")
 
     new_count = count - 1
-    # IO.inspect(i_level, label: "In levelBylevel, count #{count}, new_count #{new_count} ")
+    # IO.inspect(i_level, label: "\nIn levelBylevel, count #{count}, new_count #{new_count} ")
 
     new_j = j + 1
     new_state = placeInNeighborMap(my_state, neighbor_id)
@@ -335,7 +351,7 @@ defmodule TAPNODE do
 
   def placeInNeighborMap(my_state, neighbor_id) do
     my_id = elem(my_state, 1)
-    # IO.inspect(neighbor_id, label: "my id is #{my_id} and neighbor_id")
+    # IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{my_id} and neighbor_id")
 
     if(my_id != neighbor_id) do
       my_neighborMap = elem(my_state, 3)
@@ -397,6 +413,8 @@ defmodule TAPNODE do
       # update state
       temp_state = Tuple.delete_at(my_state, 3)
       _my_new_state = Tuple.insert_at(temp_state, 3, new_my_neighborMap)
+    else
+      my_state
     end
   end
 
