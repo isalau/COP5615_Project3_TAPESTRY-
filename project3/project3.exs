@@ -109,7 +109,7 @@ defmodule TAPNODE do
     pid = Kernel.inspect(self())
     {from_pid, _ok} = from
     fid = Kernel.inspect(from_pid)
-    IO.inspect(state, label: "\n #{pid} Received Hello from #{fid}. \nMy old state")
+    # IO.inspect(state, label: "\n #{pid} Received Hello from #{fid}. \nMy old state")
     # IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. \nMy old state")
     new_state = placeInNeighborMap(state, neighbor_id)
     # IO.inspect(new_state, label: "\nMy new state")
@@ -120,7 +120,7 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:getHNeighbors, i}, from, state) do
     pid = Kernel.inspect(self())
-    IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
+    # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
@@ -155,15 +155,15 @@ defmodule TAPNODE do
   def handle_cast({:LevelToLevel, i_level, count, _j}, state) do
     pid = Kernel.inspect(self())
 
-    IO.inspect(state,
-      label: "\nIn LevelToLevel server. My pid is #{pid} and my state before H neighbors"
-    )
+    # IO.inspect(state,
+    #   label: "\nIn LevelToLevel server. My pid is #{pid} and my state before H neighbors"
+    # )
 
     new_state = levelBylevel(i_level, state, count, 0)
 
-    IO.inspect(new_state,
-      label: "\n\nIn LevelToLevel server. My pid is #{pid} and my state after H neighbors"
-    )
+    # IO.inspect(new_state,
+    #   label: "\n\nIn LevelToLevel server. My pid is #{pid} and my state after H neighbors"
+    # )
 
     {:noreply, new_state}
   end
@@ -203,7 +203,7 @@ defmodule TAPNODE do
 
   def hNodeToRoute(h_node_pid, i, my_id) do
     pid = Kernel.inspect(self())
-    IO.inspect(pid, label: "\nMy PiD ")
+    # IO.inspect(pid, label: "\nMy PiD ")
 
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     TAPNODE.sendHello(h_node_pid, self(), my_id)
@@ -213,7 +213,7 @@ defmodule TAPNODE do
 
   def getHNeighbors(h_node_pid, i) do
     pid = Kernel.inspect(self())
-    IO.inspect(pid, label: "\nIn getHNeighbors client. My pid is ")
+    # IO.inspect(pid, label: "\nIn getHNeighbors client. My pid is ")
     _new_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
   end
 
@@ -245,7 +245,7 @@ defmodule TAPNODE do
   def placeInNeighborMap(my_state, neighbor_id) do
     pid = Kernel.inspect(self())
     my_id = elem(my_state, 1)
-    IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
+    # IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
 
     if(my_id != neighbor_id) do
       my_neighborMap = elem(my_state, 3)
@@ -320,9 +320,9 @@ defmodule TAPNODE do
   def levelBylevel(i_level, my_state, count, j) do
     pid = Kernel.inspect(self())
 
-    IO.inspect(my_state,
-      label: "\nIn LevelToLevel client. My pid is #{pid} and my state is"
-    )
+    # IO.inspect(my_state,
+    # label: "\nIn LevelToLevel client. My pid is #{pid} and my state is"
+    # )
 
     neighbor = Enum.at(i_level, j)
     # IO.inspect(neighbor, label: "\nLevelBylevel neighbor ")
