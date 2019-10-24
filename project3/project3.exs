@@ -73,7 +73,6 @@ defmodule TAPNODE do
     random_number = :rand.uniform(10000)
     sha = :crypto.hash(:sha, "#{random_number}")
     new_id = sha |> Base.encode16()
-    # IO.inspect(new_id, label: "sha 1 output")
 
     numRequestToSend = numRequests
 
@@ -85,15 +84,6 @@ defmodule TAPNODE do
   @impl true
   def init({index, new_id, numRequestToSend, neighborMap}) do
     {:ok, {index, new_id, numRequestToSend, neighborMap}}
-  end
-
-  @impl true
-  def handle_call({:receiveHello, neighbor_id}, _from, state) do
-    IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. My old state")
-    new_state = placeInNeighborMap(state, neighbor_id)
-    IO.inspect(new_state, label: "\nMy New state")
-
-    {:noreply, new_state}
   end
 
   @impl true
@@ -114,13 +104,23 @@ defmodule TAPNODE do
   end
 
   @impl true
+  def handle_call({:receiveHello, neighbor_id}, _from, state) do
+    # IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. \nMy old state")
+    new_state = placeInNeighborMap(state, neighbor_id)
+    # IO.inspect(new_state, label: "\nMy new state")
+
+    {:reply, new_state, new_state}
+  end
+
+  @impl true
   def handle_call({:getHNeighbors, i}, from, state) do
-    IO.puts("In getHNeighbors server")
+    IO.puts("\nIn getHNeighbors server")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
     # # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
+      IO.puts("here 1")
       # check if  i level is empty --> terminate when null entry found
       if checkIfLevelIExists(h_neighbor_map, i) == true do
         # Grab i level from h_neighbor_map;
@@ -133,9 +133,9 @@ defmodule TAPNODE do
         # get every item in that level and add to my neighbor list
 
         # Enum.each(i_level, fn x ->
-
-        GenServer.call(from_pid, {:LevelToLevel, i_level, count, 0}, :infinity)
-        IO.puts("here 1")
+        IO.puts("here 2")
+        GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
+        IO.puts("here 3")
         {:reply, state, state}
       else
         {:reply, state, state}
@@ -146,13 +146,13 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:LevelToLevel, i_level, count, _j}, _from, state) do
+  def handle_cast({:LevelToLevel, i_level, count, _j}, state) do
     IO.puts("In LevelToLevel server")
     # IO.inspect(state, label: "\nMy state before H neighbors")
     new_state = levelBylevel(i_level, state, count, 0)
     # IO.inspect(new_state, label: "\nMy new state after H neighbors")
 
-    {:reply, new_state}
+    {:noreply, new_state}
   end
 
   ################# CLIENT ######################
@@ -191,13 +191,15 @@ defmodule TAPNODE do
   def hNodeToRoute(h_node_pid, i, my_id) do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     TAPNODE.sendHello(h_node_pid, self(), my_id)
+    IO.puts("before getHNeighbors")
 
     new_state = getHNeighbors(h_node_pid, i)
-    IO.puts("after hNodeToRoute")
+    IO.puts("after getHNeighbors")
     new_state
   end
 
   def getHNeighbors(h_node_pid, i) do
+    IO.puts("In getHNeighbors client")
     _new_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
   end
 
