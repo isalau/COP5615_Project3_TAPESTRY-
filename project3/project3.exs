@@ -88,7 +88,7 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:receiveHello, neighbor_id}, from, state) do
+  def handle_call({:receiveHello, neighbor_id}, _from, state) do
     IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. My old state")
     new_state = placeInNeighborMap(state, neighbor_id)
     IO.inspect(new_state, label: "\nMy New state")
@@ -97,7 +97,7 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:addToTapestry}, from, state) do
+  def handle_call({:addToTapestry}, _from, state) do
     IO.inspect(state, label: "\nMy Initial State")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
@@ -134,7 +134,7 @@ defmodule TAPNODE do
 
         # Enum.each(i_level, fn x ->
 
-        GenServer.call(from_pid, {:LevelToLevel, i_level, count, 0})
+        GenServer.call(from_pid, {:LevelToLevel, i_level, count, 0}, :infinity)
         IO.puts("here 1")
         {:reply, state, state}
       else
@@ -164,7 +164,7 @@ defmodule TAPNODE do
   end
 
   def addToTapestry(childPid) do
-    GenServer.call(childPid, {:addToTapestry})
+    GenServer.call(childPid, {:addToTapestry}, :infinity)
   end
 
   def contactGatewayNode(_new_id, childPid) do
@@ -223,7 +223,7 @@ defmodule TAPNODE do
 
   def sendHello(neighbor_id, _n_id, new_id) do
     # Node N sends hello to Neighbor new_neighbor  H(i)
-    GenServer.call(neighbor_id, {:receiveHello, new_id})
+    GenServer.call(neighbor_id, {:receiveHello, new_id}, :infinity)
   end
 
   def placeInNeighborMap(my_state, neighbor_id) do
