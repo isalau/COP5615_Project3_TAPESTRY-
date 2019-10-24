@@ -27,10 +27,10 @@ defmodule MAINPROJ do
       TAPNODE.addToTapestry(childPid)
     end
 
-    for x <- children do
-      {a, childPid, b, c} = x
-      # TAPNODE.printState(childPid)
-    end
+    # for x <- children do
+    # {_, childPid, _, _} = x
+    # TAPNODE.printState(childPid)
+    # end
 
     for x <- children do
       {_, childPid, _, _} = x
@@ -111,7 +111,7 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:addToTapestry}, _from, state) do
-    pid = Kernel.inspect(self())
+    _pid = Kernel.inspect(self())
     # IO.inspect(state, label: "\nMy #{pid} Initial State")
     # state = index, new_id, numRequestToSend, neighborMap
     my_id = elem(state, 1)
@@ -130,9 +130,9 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:receiveHello, neighbor_id}, from, state) do
-    pid = Kernel.inspect(self())
+    _pid = Kernel.inspect(self())
     {from_pid, _ok} = from
-    fid = Kernel.inspect(from_pid)
+    _fid = Kernel.inspect(from_pid)
     # IO.inspect(state, label: "\n #{pid} Received Hello from #{fid}. \nMy old state")
     # IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. \nMy old state")
     new_state = placeInNeighborMap(state, neighbor_id)
@@ -142,15 +142,15 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:getHNeighbors, i}, from, state) do
-    pid = Kernel.inspect(self())
+  def handle_call({:getHNeighbors, _i}, from, state) do
+    _pid = Kernel.inspect(self())
     # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
     # get neighbor map from h
     {_, _neighbor_id, _, h_neighbor_map} = state
 
     # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
-      level_count = Enum.count(h_neighbor_map)
+      _level_count = Enum.count(h_neighbor_map)
       level = 0
       # go through every level of neighbor list
       levels(h_neighbor_map, level, from)
@@ -161,7 +161,7 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:printState}, _from, state) do
-    pid = Kernel.inspect(self())
+    # _pid = Kernel.inspect(self())
     # IO.inspect(state, label: "\n My #{pid} State is")
 
     {:reply, :ok, state}
@@ -169,14 +169,13 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:getState}, _from, state) do
-    pid = Kernel.inspect(self())
-    state
+    # _pid = Kernel.inspect(self())
     {:reply, state, state}
   end
 
   @impl true
   def handle_cast({:LevelToLevel, i_level, count, _j}, state) do
-    pid = Kernel.inspect(self())
+    # _pid = Kernel.inspect(self())
 
     # IO.inspect(state,
     #   label: "\nIn LevelToLevel server. My pid is #{pid} and my state before H neighbors"
@@ -194,7 +193,7 @@ defmodule TAPNODE do
   @impl true
   def handle_cast({:sendMessage, receiverPid}, state) do
     neighbor_state = GenServer.call(receiverPid, {:getState}, :infinity)
-    {_, neighbor_id, _, neighbor_map} = neighbor_state
+    {_, neighbor_id, _, _neighbor_map} = neighbor_state
     {_, my_id, _, my_neighbor_map} = state
 
     # find prefix match length
@@ -291,7 +290,7 @@ defmodule TAPNODE do
   end
 
   def getHNeighbors(h_node_pid, i) do
-    pid = Kernel.inspect(self())
+    # pid = Kernel.inspect(self())
     # IO.inspect(pid, label: "\nIn getHNeighbors client. My pid is ")
     GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
     # IO.inspect(new_state, label: "\nAfter getHNeighbors")
@@ -324,7 +323,7 @@ defmodule TAPNODE do
   end
 
   def placeInNeighborMap(my_state, neighbor_id) do
-    pid = Kernel.inspect(self())
+    # pid = Kernel.inspect(self())
     my_id = elem(my_state, 1)
     # IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
 
@@ -399,7 +398,7 @@ defmodule TAPNODE do
   end
 
   def levelBylevel(i_level, my_state, count, j) do
-    pid = Kernel.inspect(self())
+    # pid = Kernel.inspect(self())
 
     # IO.inspect(my_state,
     # label: "\nIn LevelToLevel client. My pid is #{pid} and my state is"
@@ -504,9 +503,11 @@ defmodule TAPNODE do
         _prefix = String.slice(senderPid, 0..j_corrected)
         i_index = j_corrected + 1
         i = String.at(receiverPid, i_index)
+        i
       else
         # i is the first elemment
         i = String.at(receiverPid, 0)
+        i
       end
 
     i
