@@ -319,12 +319,12 @@ defmodule TAPNODE do
     # IO.inspect(prefixA, label: "prefixA")
     prefixB = String.slice(neighbor_id, 0..j)
     # IO.inspect(prefixB, label: "prefixB")
-    new_j = j + 1
 
     if prefixA == prefixB do
       # IO.puts("It's A Match")
+      new_j = j + 1
       findJ(my_id, neighbor_id, new_j)
-      new_j
+      # new_j
     else
       j
     end
