@@ -126,29 +126,12 @@ defmodule TAPNODE do
 
     # # check if  h_neighbor_map level is empty
     if h_neighbor_map != nil do
-      # IO.puts("here 1")
-      # check if  i level is empty --> terminate when null entry found
-      if checkIfLevelIExists(h_neighbor_map, i) == true do
-        # Grab i level from h_neighbor_map;
-        i_level = getLevelI(h_neighbor_map, i)
-        count = Enum.count(i_level)
-        {from_pid, _ok} = from
-        # IO.inspect(self(), label: "self")
-        # IO.inspect(from_pid, label: "from_pid")
-        # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
-        # get every item in that level and add to my neighbor list
-
-        # Enum.each(i_level, fn x ->
-        # IO.puts("here 2")
-        GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
-        # IO.puts("here 3")
-        {:reply, state, state}
-      else
-        {:reply, state, state}
-      end
-    else
-      {:reply, state, state}
+      level_count = Enum.count(h_neighbor_map)
+      level = 0
+      levels(h_neighbor_map, level, from)
     end
+
+    {:reply, state, state}
   end
 
   @impl true
@@ -169,6 +152,24 @@ defmodule TAPNODE do
   end
 
   ################# CLIENT ######################
+
+  def levels(h_neighbor_map, level, from) do
+    # check if  i level is empty --> terminate when null entry found
+    if checkIfLevelExists(h_neighbor_map, level) == true do
+      # Grab i level from h_neighbor_map;
+      i_level = getLevelI(h_neighbor_map, level)
+      count = Enum.count(i_level)
+      {from_pid, _ok} = from
+      # IO.inspect(self(), label: "self")
+      # IO.inspect(from_pid, label: "from_pid")
+      # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
+
+      # get every item in that level and add to my neighbor list
+      GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
+      next_level = level + 1
+      levels(h_neighbor_map, next_level, from)
+    end
+  end
 
   def stayAlive(keep) do
     if keep == true do
@@ -196,11 +197,6 @@ defmodule TAPNODE do
     end
   end
 
-  # stopping condition --> last level
-  # def hNodeToRoute(_hNode, i, _new_id, _state) when i == 40 do
-  #   # copy everything but recursion from below
-  # end
-
   def hNodeToRoute(h_node_pid, i, my_id) do
     pid = Kernel.inspect(self())
     # IO.inspect(pid, label: "\nMy PiD ")
@@ -212,12 +208,12 @@ defmodule TAPNODE do
   end
 
   def getHNeighbors(h_node_pid, i) do
-    pid = Kernel.inspect(self())
+    # pid = Kernel.inspect(self())
     # IO.inspect(pid, label: "\nIn getHNeighbors client. My pid is ")
     _new_state = GenServer.call(h_node_pid, {:getHNeighbors, i}, :infinity)
   end
 
-  def checkIfLevelIExists(h_neighbor_map, i) do
+  def checkIfLevelExists(h_neighbor_map, i) do
     if(Enum.count(h_neighbor_map) > 0) do
       if Map.has_key?(h_neighbor_map, i) == true do
         true
