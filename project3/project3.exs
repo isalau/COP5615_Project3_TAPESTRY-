@@ -462,8 +462,7 @@ defmodule TAPNODE do
       # if index_i of me(neighbor_id) == index_i of target
       #   check if check I found direct neighbor
       #   yes
-      #     print msg
-      IO.inspect("I received a message from nextHop and it took #{msg} hops")
+      #    TAPNODE.sendDirectMessage(receiverPid, msg)
       #   no
       #     n_new = n+ 1
       #   new_msg = msg + 1
