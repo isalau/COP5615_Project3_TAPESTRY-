@@ -151,25 +151,27 @@ defmodule TAPNODE do
 
   @impl true
   def handle_cast({:addToNeighborMap, neighbor_id, from_pid}, state) do
+    IO.inspect(self(), label: "In add to neighbor map")
     new_state = placeInNeighborMap(state, neighbor_id, from_pid)
     {:noreply, new_state}
   end
 
   @impl true
   def handle_call({:getHNeighbors}, from, state) do
-    # # _pid = Kernel.inspect(self())
-    # # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
-    # # get neighbor map from h
-    # {_, neighbor_id, _, h_neighbor_map, _, _} = state
-    # # placeInNeighborMap(state, neighbor_id)
-    #
-    # # check if  h_neighbor_map level is empty
-    # if h_neighbor_map != nil do
-    #   _level_count = Enum.count(h_neighbor_map)
-    #   level = 0
-    #   # go through every level of neighbor list
-    #   levels(h_neighbor_map, level, from)
-    # end
+    # _pid = Kernel.inspect(self())
+    # IO.inspect(state, label: "\nIn getHNeighbors server. My pid is #{pid} and my state is")
+    # get neighbor map from h
+    {from_pid, _ok} = from
+    {_, neighbor_id, _, h_neighbor_map, _, _} = state
+    placeInNeighborMap(state, neighbor_id, from_pid)
+
+    # check if  h_neighbor_map level is empty
+    if h_neighbor_map != nil do
+      _level_count = Enum.count(h_neighbor_map)
+      level = 0
+      # go through every level of neighbor list
+      levels(h_neighbor_map, level, from)
+    end
 
     {:reply, :ok, state}
   end
@@ -189,14 +191,14 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_cast({:LevelToLevel, i_level, count, _j}, state) do
+  def handle_cast({:LevelToLevel, i_level, count, from_pid}, state) do
     # _pid = Kernel.inspect(self())
 
     # IO.inspect(state,
     #   label: "\nIn LevelToLevel server. My pid is #{pid} and my state before H neighbors"
     # )
 
-    new_state = levelBylevel(i_level, state, count, 0)
+    new_state = levelBylevel(i_level, state, count, 0, from_pid)
 
     # IO.inspect(new_state,
     #   label: "\n\nIn LevelToLevel server. My pid is #{pid} and my state after H neighbors"
@@ -250,24 +252,6 @@ defmodule TAPNODE do
 
   ################# CLIENT ######################
 
-  def levels(h_neighbor_map, level, from) do
-    # check if  i level is empty --> terminate when null entry found
-    if checkIfLevelExists(h_neighbor_map, level) == true do
-      # Grab i level from h_neighbor_map;
-      i_level = getLevel(h_neighbor_map, level)
-      count = Enum.count(i_level)
-      {from_pid, _ok} = from
-      # IO.inspect(self(), label: "self")
-      # IO.inspect(from_pid, label: "from_pid")
-      # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
-
-      # get every item in that level and add to my neighbor list
-      GenServer.cast(from_pid, {:LevelToLevel, i_level, count, 0})
-      next_level = level + 1
-      levels(h_neighbor_map, next_level, from)
-    end
-  end
-
   def stayAlive(keep) do
     if keep == true do
       stayAlive(true)
@@ -299,9 +283,9 @@ defmodule TAPNODE do
     # IO.inspect(pid, label: "\nMy PiD ")
 
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
-    TAPNODE.sendHello(h_node_pid, self(), my_id)
+    sendHello(h_node_pid, self(), my_id)
 
-    getHNeighbors(h_node_pid)
+    # getHNeighbors(h_node_pid)
   end
 
   def getHNeighbors(h_node_pid) do
@@ -338,9 +322,9 @@ defmodule TAPNODE do
   end
 
   def placeInNeighborMap(my_state, neighbor_id, from_pid) do
-    # pid = Kernel.inspect(self())
+    pid = Kernel.inspect(self())
     my_id = elem(my_state, 1)
-    # IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
+    IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
 
     if(my_id != neighbor_id) do
       my_neighborMap = elem(my_state, 3)
@@ -376,7 +360,9 @@ defmodule TAPNODE do
         if(my_neighborMap != nil) do
           if Map.has_key?(my_neighborMap, j) == true do
             new_neighbor = [i, neighbor_id]
-            _new_my_neighborMap = updateYourNeighborMap(j, my_neighborMap, new_neighbor)
+
+            _new_my_neighborMap =
+              updateYourNeighborMap(j, my_neighborMap, new_neighbor, from_pid, my_id)
           else
             # IO.puts("level j not here yet")
             GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
@@ -384,6 +370,7 @@ defmodule TAPNODE do
           end
         else
           # IO.puts("level j not here yet")
+          GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
           _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
         end
 
@@ -412,7 +399,43 @@ defmodule TAPNODE do
     end
   end
 
-  def levelBylevel(i_level, my_state, count, j) do
+  def findI(senderPid, receiverPid, j) do
+    i =
+      if j > 0 do
+        j_corrected = j - 1
+        # IO.puts("Length of most in common prefix #{j_corrected}")
+        _prefix = String.slice(senderPid, 0..j_corrected)
+        i_index = j_corrected + 1
+        i = String.at(receiverPid, i_index)
+        i
+      else
+        # i is the first elemment
+        i = String.at(receiverPid, 0)
+        i
+      end
+
+    i
+  end
+
+  def levels(h_neighbor_map, level, from) do
+    # check if  i level is empty --> terminate when null entry found
+    if checkIfLevelExists(h_neighbor_map, level) == true do
+      # Grab i level from h_neighbor_map;
+      i_level = getLevel(h_neighbor_map, level)
+      count = Enum.count(i_level)
+      {from_pid, _ok} = from
+      # IO.inspect(self(), label: "self")
+      # IO.inspect(from_pid, label: "from_pid")
+      # IO.inspect(i_level, label: "#{count} level #{i} NeighborMap_i from H")
+
+      # get every item in that level and add to my neighbor list
+      GenServer.cast(from_pid, {:LevelToLevel, i_level, count, from_pid})
+      next_level = level + 1
+      levels(h_neighbor_map, next_level, from)
+    end
+  end
+
+  def levelBylevel(i_level, my_state, count, j, from_pid) do
     # pid = Kernel.inspect(self())
 
     # IO.inspect(my_state,
@@ -429,16 +452,16 @@ defmodule TAPNODE do
     # IO.inspect(i_level, label: "\nIn levelBylevel, count #{count}, new_count #{new_count} ")
 
     new_j = j + 1
-    # new_state = placeInNeighborMap(my_state, neighbor_id)
+    new_state = placeInNeighborMap(my_state, neighbor_id, from_pid)
 
-    # if new_count > 0 do
-    #   levelBylevel(i_level, new_state, new_count, new_j)
-    # else
-    #   new_state
-    # end
+    if new_count > 0 do
+      levelBylevel(i_level, new_state, new_count, new_j, from_pid)
+    else
+      new_state
+    end
   end
 
-  def updateYourNeighborMap(j, my_neighborMap, new_neighbor) do
+  def updateYourNeighborMap(j, my_neighborMap, new_neighbor, from_pid, my_id) do
     {_current_neighbors, updateedNeighborMap} =
       Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
         # IO.inspect(current_neighbors, label: "current_neighbors")
@@ -446,6 +469,7 @@ defmodule TAPNODE do
         if Enum.member?(current_neighbors, new_neighbor) do
           {current_neighbors, current_neighbors}
         else
+          GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
           update = current_neighbors ++ [new_neighbor]
           sorted_update = Enum.sort(update)
           {current_neighbors, sorted_update}
@@ -505,24 +529,6 @@ defmodule TAPNODE do
 
   def sendRequest(senderPid, receiverPid) do
     GenServer.cast(senderPid, {:sendMessage, receiverPid})
-  end
-
-  def findI(senderPid, receiverPid, j) do
-    i =
-      if j > 0 do
-        j_corrected = j - 1
-        # IO.puts("Length of most in common prefix #{j_corrected}")
-        _prefix = String.slice(senderPid, 0..j_corrected)
-        i_index = j_corrected + 1
-        i = String.at(receiverPid, i_index)
-        i
-      else
-        # i is the first elemment
-        i = String.at(receiverPid, 0)
-        i
-      end
-
-    i
   end
 
   def sendDirectMessage(receiverPid, msg) do
