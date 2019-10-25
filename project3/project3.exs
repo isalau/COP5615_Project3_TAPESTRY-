@@ -29,25 +29,41 @@ defmodule MAINPROJ do
     IO.inspect(opts, label: "in init")
     numNodes = Enum.at(opts, 0)
     numRequests = Enum.at(opts, 1)
-    numHeard = 3
+    numHeard = []
     main(numNodes, numRequests)
-
-    {:ok, {numHeard}}
+    numberOfResponses = numNodes * numRequests
+    {:ok, {numHeard, numberOfResponses}}
   end
 
   @impl true
-  def handle_cast({:getMaxHops, numberOfResponses}, state) do
+  def handle_cast({:getMaxHops, maxHop}, state) do
+    IO.puts("in get hops")
     # check to see if I have received all the number of responses I need
-    {numHeard} = state
+    {maxHops, numberOfResponses} = state
 
-    if numHeard == numberOfResponses do
-      IO.inspect(numHeard, label: "numberOfResponses #{numberOfResponses} equal to numHeard")
+    newmaxHops = maxHops ++ [maxHop]
+    IO.inspect(newmaxHops, label: "newNumHeard")
+    countNumHops = Enum.count(newmaxHops)
+
+    if countNumHops == numberOfResponses do
+      maxHop = Enum.max(newmaxHops)
+
+      IO.inspect(
+        "numberOfResponses #{numberOfResponses} equal to numHeard #{countNumHops} and maxHop was #{
+          maxHop
+        }"
+      )
     else
       # wait some nodes still aren't done
-      IO.inspect(numHeard, label: "numberOfResponses #{numberOfResponses} not equal to numHeard")
+      IO.inspect(countNumHops,
+        label: "numberOfResponses #{numberOfResponses} not equal to numHeard"
+      )
 
       keepAlive()
     end
+
+    new_state = {newmaxHops, numberOfResponses}
+    {:noreply, new_state}
   end
 
   def start_link(opts) do
@@ -363,9 +379,9 @@ defmodule TAPNODE do
     # target_state = GenServer.call(target_pid, {:getState}, :infinity)
     #
     # routeToObject(target_state, target_pid, state)
-    IO.inspect("sending message to main")
+    # IO.inspect("sending message to main")
     # IO.inspect(MAINPROJ, label: "alive?")
-    GenServer.cast(MAINPROJ, {:getMaxHops, 2})
+    GenServer.cast(MAINPROJ, {:getMaxHops, 7})
 
     {:noreply, state}
   end
