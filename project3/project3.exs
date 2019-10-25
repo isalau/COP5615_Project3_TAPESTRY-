@@ -191,9 +191,9 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:routeN, j, my_id, my_pid}, from, state) do
-    IO.puts("In routeN")
     # in neighbors state
     {_, neighbor_id, _, neighbor_map, _, _} = state
+    IO.inspect(my_pid, label: "In routeN looking from #{j} neighbor_id")
     # # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
       IO.inspect("level #{j} exists")
@@ -202,7 +202,7 @@ defmodule TAPNODE do
       # get close item and route there
       neighbor = Enum.at(level, 0)
       next_neighbor_id = Enum.at(neighbor, 1)
-      next_neighbor_pid = Enum.at(neighbor, 1)
+      next_neighbor_pid = Enum.at(neighbor, 2)
       new_j = j + 1
 
       if next_neighbor_id != my_id do
@@ -212,8 +212,6 @@ defmodule TAPNODE do
       IO.inspect("i don't know")
     end
 
-    # A node N has a neighbor map with multiple levels, where each level contains links to nodes matching a prefix up to a digit position in the ID, and contains a number of entries equal to the ID’s base.
-    # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
     {:reply, :ok, state}
   end
 
