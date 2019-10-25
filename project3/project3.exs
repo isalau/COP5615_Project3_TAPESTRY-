@@ -59,7 +59,7 @@ defmodule MAINPROJ do
         label: "numberOfResponses #{numberOfResponses} not equal to numHeard"
       )
 
-      keepAlive()
+      # keepAlive()
     end
 
     new_state = {newmaxHops, numberOfResponses}
@@ -381,7 +381,7 @@ defmodule TAPNODE do
     # routeToObject(target_state, target_pid, state)
     # IO.inspect("sending message to main")
     # IO.inspect(MAINPROJ, label: "alive?")
-    GenServer.cast(MAINPROJ, {:getMaxHops, 7})
+    GenServer.cast(MAINPROJ, {:getMaxHops, 3})
 
     {:noreply, state}
   end
