@@ -156,29 +156,59 @@ defmodule TAPNODE do
     {from_pid, _ok} = from
     {_, neighbor_id, _, neighbor_map, _, _} = state
     j = findJ(my_id, neighbor_id, 0)
+    i = j + 1
     # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
       # go to that level on the Map
       level = getLevel(neighbor_map, j)
       # IO.inspect(level, label: "level")
-      # copy level map
-      for elem <- level do
-        # IO.inspect("should add friend")
-        n_id = Enum.at(elem, 1)
-        n_pid = Enum.at(elem, 2)
-        GenServer.cast(my_pid, {:addToNeighborMap, n_id, n_pid})
-      end
 
-      # get close item and route there
-      # check it make sure it's not you
-      neighbor = Enum.at(level, 0)
-      next_neighbor_id = Enum.at(neighbor, 1)
-      next_neighbor_pid = Enum.at(neighbor, 2)
-      new_j = j + 1
-      # IO.puts("here 1")
+      # check if there is a neighbor with the same "i" as you
+      iInList =
+        Enum.any?(level, fn elem ->
+          n_i = Enum.at(elem, 0)
+          n_i == i
+        end)
 
-      if next_neighbor_id != my_id do
-        GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
+      if iInList == true do
+        neighbor =
+          Enum.find?(level, fn elem ->
+            n_i = Enum.at(elem, 0)
+            n_i == i
+          end)
+
+        # get close item and route there
+        # check it make sure it's not you
+        # neighbor = Enum.at(level, 0)
+        next_neighbor_id = Enum.at(neighbor, 1)
+        next_neighbor_pid = Enum.at(neighbor, 2)
+        new_j = j + 1
+        # IO.puts("here 1")
+
+        if next_neighbor_id != my_id do
+          GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
+        end
+      else
+        # IO.inspect(level, label: "level")
+        # copy level map
+        for elem <- level do
+          # IO.inspect("should add friend")
+          n_id = Enum.at(elem, 1)
+          n_pid = Enum.at(elem, 2)
+          GenServer.cast(my_pid, {:addToNeighborMap, n_id, n_pid})
+        end
+
+        # get close item and route there
+        # check it make sure it's not you
+        neighbor = Enum.at(level, 0)
+        next_neighbor_id = Enum.at(neighbor, 1)
+        next_neighbor_pid = Enum.at(neighbor, 2)
+        new_j = j + 1
+        # IO.puts("here 1")
+
+        if next_neighbor_id != my_id do
+          GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
+        end
       end
 
       # IO.puts("here 2")
@@ -193,10 +223,10 @@ defmodule TAPNODE do
   def handle_call({:routeN, j, my_id, my_pid}, from, state) do
     # in neighbors state
     {_, neighbor_id, _, neighbor_map, _, _} = state
-    IO.inspect(my_pid, label: "In routeN looking from #{j} neighbor_id")
+    # IO.inspect(my_pid, label: "In routeN looking from #{j} neighbor_id")
     # # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
-      IO.inspect("level #{j} exists")
+      # IO.inspect("level #{j} exists")
       # go to that level on the Map
       level = getLevel(neighbor_map, j)
       # get close item and route there
@@ -209,7 +239,7 @@ defmodule TAPNODE do
         GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
       end
     else
-      IO.inspect("i don't know")
+      # IO.inspect("i don't know")
     end
 
     {:reply, :ok, state}
@@ -610,6 +640,10 @@ defmodule TAPNODE do
 
   def sendDirectMessage(receiverPid, msg) do
     GenServer.cast(receiverPid, {:receiveMessage, msg})
+  end
+
+  def iInLevel(level, i) do
+    # given a level check every element to see if an i matches
   end
 end
 
