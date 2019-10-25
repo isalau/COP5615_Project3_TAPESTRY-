@@ -27,7 +27,7 @@ defmodule MAINPROJ do
       TAPNODE.addToTapestry(childPid)
     end
 
-    :timer.sleep(3000)
+    :timer.sleep(1000)
 
     for x <- children do
       {_, childPid, _, _} = x
@@ -150,10 +150,61 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_cast({:addToNeighborMap, neighbor_id, from_pid}, state) do
-    # IO.inspect(self(), label: "In add to neighbor map")
-    new_state = placeInNeighborMap(state, neighbor_id, from_pid)
-    {:noreply, new_state}
+  def handle_call({:populateNeighbors, my_id, my_pid}, from, state) do
+    IO.inspect(my_pid, label: "\nIn populateNeighbors server. My pid is")
+    # get neighbor map from h
+    {from_pid, _ok} = from
+    {_, neighbor_id, _, neighbor_map, _, _} = state
+    j = findJ(my_id, neighbor_id, 0)
+    # check if level exists
+    if(checkIfLevelExists(neighbor_map, j) == true) do
+      # go to that level on the Map
+      level = getLevel(neighbor_map, j)
+      # IO.inspect(level, label: "level")
+      # copy level map
+      for elem <- level do
+        GenServer.cast(my_pid, {:addToNeighborMap, neighbor_id, my_pid})
+      end
+
+      # get close item and route there
+      # check it make sure it's not you
+      neighbor = Enum.at(level, 0)
+      next_neighbor_id = Enum.at(neighbor, 1)
+      next_neighbor_pid = Enum.at(neighbor, 2)
+      new_j = j + 1
+      IO.puts("here 1")
+
+      if next_neighbor_id != my_id do
+        GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
+      end
+
+      IO.puts("here 2")
+    else
+      IO.inspect("i don't know")
+    end
+
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call({:routeN, j, my_id, my_pid}, from, state) do
+    IO.puts("In routeN")
+    # in neighbors state
+    # {_, neighbor_id, _, neighbor_map, _, _} = state
+    # # check if level exists
+    # if(checkIfLevelExists(neighbor_map, j) == true) do
+    #   # go to that level on the Map
+    #   # level = getLevel(neighbor_map, j)
+    #   # get close item and route there
+    #   # neighbor = Enum.at(level, 0)
+    #   # next_neighbor_id = Enum.at(neighbor, 1)
+    # else
+    #   # route
+    # end
+
+    # A node N has a neighbor map with multiple levels, where each level contains links to nodes matching a prefix up to a digit position in the ID, and contains a number of entries equal to the ID’s base.
+    # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -188,6 +239,13 @@ defmodule TAPNODE do
   def handle_call({:getState}, _from, state) do
     # _pid = Kernel.inspect(self())
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_cast({:addToNeighborMap, neighbor_id, from_pid}, state) do
+    # IO.inspect(self(), label: "In add to neighbor map")
+    new_state = placeInNeighborMap(state, neighbor_id, from_pid)
+    {:noreply, new_state}
   end
 
   @impl true
@@ -257,7 +315,8 @@ defmodule TAPNODE do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     sendHello(h_node_pid, self(), my_id)
 
-    getHNeighbors(h_node_pid)
+    GenServer.call(h_node_pid, {:populateNeighbors, my_id, self()}, :infinity)
+    # getHNeighbors(h_node_pid)
   end
 
   def sendHello(neighbor_id, _n_id, new_id) do
@@ -455,11 +514,6 @@ defmodule TAPNODE do
 
   def printState(childPid) do
     GenServer.call(childPid, {:printState}, :infinity)
-  end
-
-  def routeNode(N, Exact) do
-    # A node N has a neighbor map with multiple levels, where each level contains links to nodes matching a prefix up to a digit position in the ID, and contains a number of entries equal to the ID’s base.
-    # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
   end
 
   def routeToCurrentSurrogate(_surrogate_Node) do
