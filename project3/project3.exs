@@ -34,11 +34,11 @@ defmodule MAINPROJ do
       TAPNODE.printState(childPid)
     end
 
-    # for x <- children do
-    #   {_, childPid, _, _} = x
-    #   # get random child from supervisor
-    #   sendRandom(childPid)
-    # end
+    for x <- children do
+      {_, childPid, _, _} = x
+      # get random child from supervisor
+      sendRandom(childPid)
+    end
 
     keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
@@ -150,10 +150,10 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:populateNeighbors, my_id, my_pid}, from, state) do
+  def handle_call({:populateNeighbors, my_id, my_pid}, _from, state) do
     # IO.inspect(my_pid, label: "\nIn populateNeighbors server. My pid is")
     # get neighbor map from h
-    {from_pid, _ok} = from
+    # {from_pid, _ok} = from
     {_, neighbor_id, _, neighbor_map, _, _} = state
     j = findJ(my_id, neighbor_id, 0)
     i = j + 1
@@ -172,7 +172,7 @@ defmodule TAPNODE do
 
       if iInList == true do
         neighbor =
-          Enum.find?(level, fn elem ->
+          Enum.find(level, fn elem ->
             n_i = Enum.at(elem, 0)
             n_i == i
           end)
@@ -220,9 +220,9 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_call({:routeN, j, my_id, my_pid}, from, state) do
+  def handle_call({:routeN, j, my_id, my_pid}, _from, state) do
     # in neighbors state
-    {_, neighbor_id, _, neighbor_map, _, _} = state
+    {_, _neighbor_id, _, neighbor_map, _, _} = state
     # IO.inspect(my_pid, label: "In routeN looking from #{j} neighbor_id")
     # # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
@@ -304,10 +304,10 @@ defmodule TAPNODE do
   end
 
   @impl true
-  def handle_cast({:sendMessage, receiverPid}, state) do
-    neighbor_state = GenServer.call(receiverPid, {:getState}, :infinity)
+  def handle_cast({:sendMessage, target_pid}, state) do
+    target_state = GenServer.call(target_pid, {:getState}, :infinity)
 
-    routeToObject(neighbor_state, state, receiverPid)
+    routeToObject(target_state, target_pid, state)
 
     {:noreply, state}
   end
@@ -562,13 +562,13 @@ defmodule TAPNODE do
     GenServer.cast(senderPid, {:sendMessage, receiverPid})
   end
 
-  def routeToObject(neighbor_state, my_state, target_pid) do
+  def routeToObject(target_state, target_pid, my_state) do
     # Return root node of where object is (or would be) located
-    {_, neighbor_id, _, _neighbor_map, _, _} = neighbor_state
+    {_, target_id, _, _neighbor_map, _, _} = target_state
     {_, my_id, _, my_neighbor_map, _, _} = my_state
 
     # find prefix match length
-    j = findJ(my_id, neighbor_id, 0)
+    j = findJ(my_id, target_id, 0)
 
     # check if level exists
     if(checkIfLevelExists(my_neighbor_map, j) == true) do
@@ -576,10 +576,10 @@ defmodule TAPNODE do
       level = getLevel(my_neighbor_map, j)
 
       # find i
-      i = findI(my_id, neighbor_id, j)
+      i = findI(my_id, target_id, j)
 
       # check to see if neighbor is in map
-      dummy_neighbor = [i, neighbor_id, target_pid]
+      dummy_neighbor = [i, target_id, target_pid]
 
       if Enum.member?(level, dummy_neighbor) == true do
         # route automatically there
@@ -589,31 +589,54 @@ defmodule TAPNODE do
       else
         IO.puts("I don't have them as a neighbor")
         # try and find closests
-        index = 0
-        neighbor = Enum.at(level, index)
-        next_neighbor_id = Enum.at(neighbor, 1)
-        n = 0
-        msg = 1
-        nextHop(next_neighbor_id, neighbor_id, n, msg, target_pid)
+        findNextHop(level, i, target_id, target_pid, 0, 1)
       end
     else
       IO.puts("I don't have them as a neighbor")
-      # level doesn't exists use base level
-      level = getLevel(my_neighbor_map, 0)
-      # try and find closests
-      index = 0
-      neighbor = Enum.at(level, index)
-      next_neighbor_id = Enum.at(neighbor, 1)
-      n = 0
-      msg = 1
-      nextHop(next_neighbor_id, neighbor_id, n, msg, target_pid)
+      # level doesn't exist --> just get first level
+      {_, level} = Enum.at(my_neighbor_map, 0)
+      findNextHop(level, 0, target_id, target_pid, 0, 1)
     end
   end
 
-  def nextHop(neighbor_id, target_id, n, msg, target_pid) do
+  def findNextHop(level, i, target_id, target_pid, n, msg) do
+    # check if there is a neighbor with the same "i" as you
+    # IO.inspect(level, label: "level")
+
+    iInList =
+      Enum.any?(level, fn elem ->
+        n_i = Enum.at(elem, 0)
+        n_i == i
+      end)
+
+    if iInList == true do
+      neighbor =
+        Enum.find(level, fn elem ->
+          n_i = Enum.at(elem, 0)
+          n_i == i
+        end)
+
+      # get close item and route there
+      next_neighbor_pid = Enum.at(neighbor, 2)
+
+      if(next_neighbor_pid != self()) do
+        nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+      end
+    else
+      # no i just take first one from row
+      neighbor = Enum.at(level, 0)
+      next_neighbor_pid = Enum.at(neighbor, 2)
+
+      if(next_neighbor_pid != self()) do
+        nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+      end
+    end
+  end
+
+  def nextHop(neighbor_pid, target_id, target_pid, n, msg) do
     # look at level n of my neighbor_map
-    neighbor_state = GenServer.call(neighbor_id, {:getState}, :infinity)
-    {_, neighbor_id, _, neighbor_map} = neighbor_state
+    neighbor_state = GenServer.call(neighbor_pid, {:getState}, :infinity)
+    {_, _neighbor_id, _, neighbor_map, _, _} = neighbor_state
     # check if level exists
     if(checkIfLevelExists(neighbor_map, n) == true) do
       # go to that level on the Map
@@ -622,28 +645,23 @@ defmodule TAPNODE do
 
       # look at index i (n+1) of level n
       index = n + 1
-      dummy_neighbor = [index, neighbor_id, target_pid]
+      new_msg = msg + 1
+      dummy_neighbor = [index, target_id, target_pid]
 
       if Enum.member?(level, dummy_neighbor) == true do
-        TAPNODE.sendDirectMessage(target_pid, msg)
+        TAPNODE.sendDirectMessage(target_pid, new_msg)
       else
-        n_new = n + 1
-        new_msg = msg + 1
-        nextHop(neighbor_id, target_id, n_new, new_msg, target_pid)
+        findNextHop(level, index, target_id, target_pid, index, new_msg)
       end
     else
-      #  n_new = n+ 1
-      #  new_msg = msg + 1
-      #  nextHop(neighbor_id, target_id, n_new, new_msg)
+      new_msg = msg + 1
+      {_, level} = Enum.at(neighbor_map, 0)
+      findNextHop(level, 0, target_id, target_pid, 0, new_msg)
     end
   end
 
   def sendDirectMessage(receiverPid, msg) do
     GenServer.cast(receiverPid, {:receiveMessage, msg})
-  end
-
-  def iInLevel(level, i) do
-    # given a level check every element to see if an i matches
   end
 end
 
