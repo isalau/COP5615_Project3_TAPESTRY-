@@ -34,11 +34,11 @@ defmodule MAINPROJ do
       TAPNODE.printState(childPid)
     end
 
-    for x <- children do
-      {_, childPid, _, _} = x
-      # get random child from supervisor
-      sendRandom(childPid)
-    end
+    # for x <- children do
+    #   {_, childPid, _, _} = x
+    #   # get random child from supervisor
+    #   sendRandom(childPid)
+    # end
 
     keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
@@ -151,7 +151,7 @@ defmodule TAPNODE do
 
   @impl true
   def handle_call({:populateNeighbors, my_id, my_pid}, from, state) do
-    IO.inspect(my_pid, label: "\nIn populateNeighbors server. My pid is")
+    # IO.inspect(my_pid, label: "\nIn populateNeighbors server. My pid is")
     # get neighbor map from h
     {from_pid, _ok} = from
     {_, neighbor_id, _, neighbor_map, _, _} = state
@@ -163,7 +163,10 @@ defmodule TAPNODE do
       # IO.inspect(level, label: "level")
       # copy level map
       for elem <- level do
-        GenServer.cast(my_pid, {:addToNeighborMap, neighbor_id, my_pid})
+        # IO.inspect("should add friend")
+        n_id = Enum.at(elem, 1)
+        n_pid = Enum.at(elem, 2)
+        GenServer.cast(my_pid, {:addToNeighborMap, n_id, n_pid})
       end
 
       # get close item and route there
@@ -172,15 +175,15 @@ defmodule TAPNODE do
       next_neighbor_id = Enum.at(neighbor, 1)
       next_neighbor_pid = Enum.at(neighbor, 2)
       new_j = j + 1
-      IO.puts("here 1")
+      # IO.puts("here 1")
 
       if next_neighbor_id != my_id do
         GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
       end
 
-      IO.puts("here 2")
+      # IO.puts("here 2")
     else
-      IO.inspect("i don't know")
+      # IO.inspect("i don't know")
     end
 
     {:reply, :ok, state}
@@ -190,17 +193,18 @@ defmodule TAPNODE do
   def handle_call({:routeN, j, my_id, my_pid}, from, state) do
     IO.puts("In routeN")
     # in neighbors state
-    # {_, neighbor_id, _, neighbor_map, _, _} = state
+    {_, neighbor_id, _, neighbor_map, _, _} = state
     # # check if level exists
-    # if(checkIfLevelExists(neighbor_map, j) == true) do
-    #   # go to that level on the Map
-    #   # level = getLevel(neighbor_map, j)
-    #   # get close item and route there
-    #   # neighbor = Enum.at(level, 0)
-    #   # next_neighbor_id = Enum.at(neighbor, 1)
-    # else
-    #   # route
-    # end
+    if(checkIfLevelExists(neighbor_map, j) == true) do
+      IO.inspect("level exists")
+      #   # go to that level on the Map
+      #   # level = getLevel(neighbor_map, j)
+      #   # get close item and route there
+      #   # neighbor = Enum.at(level, 0)
+      #   # next_neighbor_id = Enum.at(neighbor, 1)
+    else
+      IO.inspect("i don't know")
+    end
 
     # A node N has a neighbor map with multiple levels, where each level contains links to nodes matching a prefix up to a digit position in the ID, and contains a number of entries equal to the ID’s base.
     # The primary ith entry in the jth level is the ID and location of the closest node that begins with prefix (N, j-1) + i
@@ -242,8 +246,15 @@ defmodule TAPNODE do
   end
 
   @impl true
+  def handle_call({:addToNM, neighbor_id, neighbor_pid}, from, state) do
+    # IO.inspect(self(), label: "In add to neighbor map with #{neighbor_id} ")
+    new_state = placeInNeighborMap(state, neighbor_id, neighbor_pid)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_cast({:addToNeighborMap, neighbor_id, from_pid}, state) do
-    # IO.inspect(self(), label: "In add to neighbor map")
+    # IO.inspect(self(), label: "In add to neighbor map with #{neighbor_id} ")
     new_state = placeInNeighborMap(state, neighbor_id, from_pid)
     {:noreply, new_state}
   end
