@@ -196,7 +196,7 @@ defmodule TAPNODE do
     {_, neighbor_id, _, neighbor_map, _, _} = state
     # # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
-      IO.inspect("level exists")
+      IO.inspect("level #{j} exists")
       # go to that level on the Map
       level = getLevel(neighbor_map, j)
       # get close item and route there
