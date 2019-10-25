@@ -29,65 +29,30 @@ defmodule MAINPROJ do
     IO.inspect(opts, label: "in init")
     numNodes = Enum.at(opts, 0)
     numRequests = Enum.at(opts, 1)
+    numHeard = 3
     main(numNodes, numRequests)
-    {:ok, %{}}
+
+    {:ok, {numHeard}}
+  end
+
+  @impl true
+  def handle_cast({:getMaxHops, numberOfResponses}, state) do
+    # check to see if I have received all the number of responses I need
+    {numHeard} = state
+
+    if numHeard == numberOfResponses do
+      IO.inspect(numHeard, label: "numberOfResponses #{numberOfResponses} equal to numHeard")
+    else
+      # wait some nodes still aren't done
+      IO.inspect(numHeard, label: "numberOfResponses #{numberOfResponses} not equal to numHeard")
+
+      keepAlive()
+    end
   end
 
   def start_link(opts) do
     IO.inspect(opts, label: "in start link")
-    GenServer.start_link(__MODULE__, opts, opts)
-  end
-
-  @impl true
-  def handle_cast({:mainStart, numNodes, numRequests}, state) do
-    IO.puts("in mainStart 1")
-    ################# STARTS SUPERVISOR ######################
-    # # number of Nodes
-    # numNodes = String.to_integer(Enum.at(argv, 0))
-    #
-    # # number of Requests
-    # numRequests = String.to_integer(Enum.at(argv, 1))
-
-    # Starting the dynamic Server
-    {:ok, _pid} = TAPESTRY.start_link(1)
-    IO.puts("in mainStart 2")
-    ################# CREATES NUMBER OF NODES ######################
-    # Range of GenServers
-    rng = Range.new(1, numNodes)
-
-    for x <- rng do
-      TAPESTRY.start_child(x, numRequests)
-      # IO.puts("Child #{x} started")
-    end
-
-    IO.puts("in mainStart 3")
-    ################# CREATE OVERLAY NETWORK  ######################
-    children = DynamicSupervisor.which_children(TAPESTRY)
-    IO.puts("in mainStart 3.5")
-
-    for x <- children do
-      {_, childPid, _, _} = x
-      TAPNODE.addToTapestry(childPid)
-    end
-
-    IO.puts("in mainStart 4")
-
-    :timer.sleep(1000)
-
-    for x <- children do
-      {_, childPid, _, _} = x
-      TAPNODE.printState(childPid)
-    end
-
-    IO.puts("in mainStart 5")
-    ################# SEND FIRST REQUEST FROM ALL NODES ######################
-    for x <- children do
-      {_, childPid, _, _} = x
-      # get random child from supervisor
-      sendRandom(childPid, numNodes, numRequests)
-    end
-
-    IO.puts("in mainStart 6")
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def main(numNodes, numRequests) do
@@ -113,17 +78,17 @@ defmodule MAINPROJ do
     ################# CREATE OVERLAY NETWORK  ######################
     children = DynamicSupervisor.which_children(TAPESTRY)
 
-    for x <- children do
-      {_, childPid, _, _} = x
-      TAPNODE.addToTapestry(childPid)
-    end
-
-    :timer.sleep(1000)
-
-    for x <- children do
-      {_, childPid, _, _} = x
-      TAPNODE.printState(childPid)
-    end
+    # for x <- children do
+    #   {_, childPid, _, _} = x
+    #   TAPNODE.addToTapestry(childPid)
+    # end
+    #
+    # :timer.sleep(1000)
+    #
+    # for x <- children do
+    #   {_, childPid, _, _} = x
+    #   TAPNODE.printState(childPid)
+    # end
 
     for x <- children do
       {_, childPid, _, _} = x
@@ -148,18 +113,6 @@ defmodule MAINPROJ do
     else
       TAPNODE.sendRequest(childPid, randomChildpid)
     end
-
-    numberOfResponses = numNodes * numRequests
-    getMaxHops(numberOfResponses)
-  end
-
-  def getMaxHops(numberOfResponses) do
-    # check to see if I have received all the number of responses I need
-    # if someVariable == numberOfResponses do
-    # else
-    # wait some nodes still aren't done
-    keepAlive()
-    # end
   end
 end
 
@@ -407,9 +360,12 @@ defmodule TAPNODE do
 
   @impl true
   def handle_cast({:sendMessage, target_pid}, state) do
-    target_state = GenServer.call(target_pid, {:getState}, :infinity)
-
-    routeToObject(target_state, target_pid, state)
+    # target_state = GenServer.call(target_pid, {:getState}, :infinity)
+    #
+    # routeToObject(target_state, target_pid, state)
+    IO.inspect("sending message to main")
+    # IO.inspect(MAINPROJ, label: "alive?")
+    GenServer.cast(MAINPROJ, {:getMaxHops, 2})
 
     {:noreply, state}
   end
