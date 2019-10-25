@@ -285,7 +285,7 @@ defmodule TAPNODE do
     # Send Hello to neighbor no matter what so they can check if they need to add me to their map
     sendHello(h_node_pid, self(), my_id)
 
-    # getHNeighbors(h_node_pid)
+    getHNeighbors(h_node_pid)
   end
 
   def getHNeighbors(h_node_pid) do
@@ -324,7 +324,7 @@ defmodule TAPNODE do
   def placeInNeighborMap(my_state, neighbor_id, from_pid) do
     pid = Kernel.inspect(self())
     my_id = elem(my_state, 1)
-    IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
+    # IO.inspect(neighbor_id, label: "\nPlaceInNeighborMap my id is #{pid} and neighbor_id")
 
     if(my_id != neighbor_id) do
       my_neighborMap = elem(my_state, 3)
@@ -353,25 +353,25 @@ defmodule TAPNODE do
         end
 
       # neighbor
-      # %{j => [i, neighbor_id]}
+      # %{j => [i, neighbor_id, neighbor_pid]}
 
       # Check if level j exists & insert
       new_my_neighborMap =
         if(my_neighborMap != nil) do
           if Map.has_key?(my_neighborMap, j) == true do
-            new_neighbor = [i, neighbor_id]
+            new_neighbor = [i, neighbor_id, from_pid]
 
             _new_my_neighborMap =
               updateYourNeighborMap(j, my_neighborMap, new_neighbor, from_pid, my_id)
           else
             # IO.puts("level j not here yet")
             GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
-            _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
+            _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id, from_pid]])
           end
         else
           # IO.puts("level j not here yet")
           GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
-          _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id]])
+          _new_my_neighborMap = Map.put(my_neighborMap, j, [[i, neighbor_id, from_pid]])
         end
 
       # update state
@@ -417,6 +417,25 @@ defmodule TAPNODE do
     i
   end
 
+  def updateYourNeighborMap(j, my_neighborMap, new_neighbor, from_pid, my_id) do
+    {_current_neighbors, updateedNeighborMap} =
+      Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
+        # IO.inspect(current_neighbors, label: "current_neighbors")
+        # check for duplicates
+        if Enum.member?(current_neighbors, new_neighbor) do
+          {current_neighbors, current_neighbors}
+        else
+          GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
+          update = current_neighbors ++ [new_neighbor]
+          sorted_update = Enum.sort(update)
+          {current_neighbors, sorted_update}
+        end
+      end)
+
+    # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
+    updateedNeighborMap
+  end
+
   def levels(h_neighbor_map, level, from) do
     # check if  i level is empty --> terminate when null entry found
     if checkIfLevelExists(h_neighbor_map, level) == true do
@@ -446,38 +465,20 @@ defmodule TAPNODE do
     # IO.inspect(neighbor, label: "\nLevelBylevel neighbor ")
 
     neighbor_id = Enum.at(neighbor, 1)
-    # IO.inspect(neighbor_id, label: "LevelBylevel neighbor_id ")
+    neighbor_pid = Enum.at(neighbor, 2)
+    # IO.inspect(neighbor_id, label: "LevelBylevel neighbor_id")
 
     new_count = count - 1
     # IO.inspect(i_level, label: "\nIn levelBylevel, count #{count}, new_count #{new_count} ")
 
     new_j = j + 1
-    new_state = placeInNeighborMap(my_state, neighbor_id, from_pid)
+    new_state = placeInNeighborMap(my_state, neighbor_id, neighbor_pid)
 
     if new_count > 0 do
       levelBylevel(i_level, new_state, new_count, new_j, from_pid)
     else
       new_state
     end
-  end
-
-  def updateYourNeighborMap(j, my_neighborMap, new_neighbor, from_pid, my_id) do
-    {_current_neighbors, updateedNeighborMap} =
-      Map.get_and_update(my_neighborMap, j, fn current_neighbors ->
-        # IO.inspect(current_neighbors, label: "current_neighbors")
-        # check for duplicates
-        if Enum.member?(current_neighbors, new_neighbor) do
-          {current_neighbors, current_neighbors}
-        else
-          GenServer.cast(from_pid, {:addToNeighborMap, my_id, self()})
-          update = current_neighbors ++ [new_neighbor]
-          sorted_update = Enum.sort(update)
-          {current_neighbors, sorted_update}
-        end
-      end)
-
-    # IO.inspect(updateedNeighborMap, label: "updateedNeighborMap")
-    updateedNeighborMap
   end
 
   def printState(childPid) do
