@@ -197,11 +197,17 @@ defmodule TAPNODE do
     # # check if level exists
     if(checkIfLevelExists(neighbor_map, j) == true) do
       IO.inspect("level exists")
-      #   # go to that level on the Map
-      #   # level = getLevel(neighbor_map, j)
-      #   # get close item and route there
-      #   # neighbor = Enum.at(level, 0)
-      #   # next_neighbor_id = Enum.at(neighbor, 1)
+      # go to that level on the Map
+      level = getLevel(neighbor_map, j)
+      # get close item and route there
+      neighbor = Enum.at(level, 0)
+      next_neighbor_id = Enum.at(neighbor, 1)
+      next_neighbor_pid = Enum.at(neighbor, 1)
+      new_j = j + 1
+
+      if next_neighbor_id != my_id do
+        GenServer.call(next_neighbor_pid, {:routeN, new_j, my_id, my_pid}, :infinity)
+      end
     else
       IO.inspect("i don't know")
     end
@@ -243,13 +249,6 @@ defmodule TAPNODE do
   def handle_call({:getState}, _from, state) do
     # _pid = Kernel.inspect(self())
     {:reply, state, state}
-  end
-
-  @impl true
-  def handle_call({:addToNM, neighbor_id, neighbor_pid}, from, state) do
-    # IO.inspect(self(), label: "In add to neighbor map with #{neighbor_id} ")
-    new_state = placeInNeighborMap(state, neighbor_id, neighbor_pid)
-    {:noreply, new_state}
   end
 
   @impl true
