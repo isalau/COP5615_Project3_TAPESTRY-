@@ -1,4 +1,95 @@
+defmodule GLOBALSUP do
+  use DynamicSupervisor
+
+  def start_link(args) do
+    # IO.puts("Its #{index} here in DynamicSupervisor")
+    {:ok, _pid} = DynamicSupervisor.start_link(__MODULE__, args, name: __MODULE__)
+  end
+
+  def start_child(numNodes, numRequests) do
+    # IO.puts("DynamicSupervisor adding #{index} child")
+
+    child_spec =
+      Supervisor.child_spec({MAINPROJ, [numNodes, numRequests]},
+        restart: :temporary
+      )
+
+    {:ok, _child} = DynamicSupervisor.start_child(__MODULE__, child_spec)
+  end
+
+  def init(_index) do
+    DynamicSupervisor.init(strategy: :one_for_one)
+  end
+end
+
 defmodule MAINPROJ do
+  use GenServer
+  @impl true
+  def init(opts) do
+    IO.inspect(opts, label: "in init")
+    numNodes = Enum.at(opts, 0)
+    numRequests = Enum.at(opts, 1)
+    main(numNodes, numRequests)
+    {:ok, %{}}
+  end
+
+  def start_link(opts) do
+    IO.inspect(opts, label: "in start link")
+    GenServer.start_link(__MODULE__, opts, opts)
+  end
+
+  @impl true
+  def handle_cast({:mainStart, numNodes, numRequests}, state) do
+    IO.puts("in mainStart 1")
+    ################# STARTS SUPERVISOR ######################
+    # # number of Nodes
+    # numNodes = String.to_integer(Enum.at(argv, 0))
+    #
+    # # number of Requests
+    # numRequests = String.to_integer(Enum.at(argv, 1))
+
+    # Starting the dynamic Server
+    {:ok, _pid} = TAPESTRY.start_link(1)
+    IO.puts("in mainStart 2")
+    ################# CREATES NUMBER OF NODES ######################
+    # Range of GenServers
+    rng = Range.new(1, numNodes)
+
+    for x <- rng do
+      TAPESTRY.start_child(x, numRequests)
+      # IO.puts("Child #{x} started")
+    end
+
+    IO.puts("in mainStart 3")
+    ################# CREATE OVERLAY NETWORK  ######################
+    children = DynamicSupervisor.which_children(TAPESTRY)
+    IO.puts("in mainStart 3.5")
+
+    for x <- children do
+      {_, childPid, _, _} = x
+      TAPNODE.addToTapestry(childPid)
+    end
+
+    IO.puts("in mainStart 4")
+
+    :timer.sleep(1000)
+
+    for x <- children do
+      {_, childPid, _, _} = x
+      TAPNODE.printState(childPid)
+    end
+
+    IO.puts("in mainStart 5")
+    ################# SEND FIRST REQUEST FROM ALL NODES ######################
+    for x <- children do
+      {_, childPid, _, _} = x
+      # get random child from supervisor
+      sendRandom(childPid, numNodes, numRequests)
+    end
+
+    IO.puts("in mainStart 6")
+  end
+
   def main(numNodes, numRequests) do
     ################# STARTS SUPERVISOR ######################
     # # number of Nodes
@@ -37,10 +128,9 @@ defmodule MAINPROJ do
     for x <- children do
       {_, childPid, _, _} = x
       # get random child from supervisor
-      sendRandom(childPid)
+      sendRandom(childPid, numNodes, numRequests)
     end
 
-    keepAlive()
     ################# SEND FIRST REQUEST FROM ALL NODES ######################
   end
 
@@ -48,16 +138,28 @@ defmodule MAINPROJ do
     keepAlive()
   end
 
-  def sendRandom(childPid) do
+  def sendRandom(childPid, numNodes, numRequests) do
     children = DynamicSupervisor.which_children(TAPESTRY)
     randomChild = Enum.random(children)
     {_, randomChildpid, _, _} = randomChild
 
     if(randomChildpid == childPid) do
-      sendRandom(childPid)
+      sendRandom(childPid, numNodes, numRequests)
     else
       TAPNODE.sendRequest(childPid, randomChildpid)
     end
+
+    numberOfResponses = numNodes * numRequests
+    getMaxHops(numberOfResponses)
+  end
+
+  def getMaxHops(numberOfResponses) do
+    # check to see if I have received all the number of responses I need
+    # if someVariable == numberOfResponses do
+    # else
+    # wait some nodes still aren't done
+    keepAlive()
+    # end
   end
 end
 
@@ -587,12 +689,12 @@ defmodule TAPNODE do
         msg = 1
         TAPNODE.sendDirectMessage(target_pid, msg)
       else
-        IO.puts("I don't have them as a neighbor")
+        IO.inspect("I don't have them as a neighbor")
         # try and find closests
         findNextHop(level, i, target_id, target_pid, 0, 1)
       end
     else
-      IO.puts("I don't have them as a neighbor")
+      IO.inspect("I don't have them as a neighbor")
       # level doesn't exist --> just get first level
       {_, level} = Enum.at(my_neighbor_map, 0)
       findNextHop(level, 0, target_id, target_pid, 0, 1)
@@ -601,7 +703,6 @@ defmodule TAPNODE do
 
   def findNextHop(level, i, target_id, target_pid, n, msg) do
     # check if there is a neighbor with the same "i" as you
-    # IO.inspect(level, label: "level")
 
     iInList =
       Enum.any?(level, fn elem ->
@@ -621,6 +722,8 @@ defmodule TAPNODE do
 
       if(next_neighbor_pid != self()) do
         nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+      else
+        # need to find another neighbor that isn't me
       end
     else
       # no i just take first one from row
@@ -629,16 +732,20 @@ defmodule TAPNODE do
 
       if(next_neighbor_pid != self()) do
         nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+      else
+        # need to find another neighbor that isn't me
       end
     end
   end
 
   def nextHop(neighbor_pid, target_id, target_pid, n, msg) do
     # look at level n of my neighbor_map
+    IO.inspect("In next hop")
     neighbor_state = GenServer.call(neighbor_pid, {:getState}, :infinity)
     {_, _neighbor_id, _, neighbor_map, _, _} = neighbor_state
     # check if level exists
     if(checkIfLevelExists(neighbor_map, n) == true) do
+      IO.inspect("in next hop level exists")
       # go to that level on the Map
       level = getLevel(neighbor_map, n)
       # check to see if neighbor is in map
@@ -649,14 +756,66 @@ defmodule TAPNODE do
       dummy_neighbor = [index, target_id, target_pid]
 
       if Enum.member?(level, dummy_neighbor) == true do
+        IO.inspect("next hop found the target")
         TAPNODE.sendDirectMessage(target_pid, new_msg)
       else
         findNextHop(level, index, target_id, target_pid, index, new_msg)
       end
     else
-      new_msg = msg + 1
-      {_, level} = Enum.at(neighbor_map, 0)
-      findNextHop(level, 0, target_id, target_pid, 0, new_msg)
+      # go to neighbor on previous level; can't go further
+      # get previous level
+      previous_n = n - 1
+
+      if(checkIfLevelExists(neighbor_map, previous_n) == true) do
+        IO.inspect("in next hop level does not exists")
+        # go to that level on the Map
+        previous_level = getLevel(neighbor_map, previous_n)
+        # check to see if neighbor is in map
+
+        # look at index i (n+1) of level n
+        index = previous_n + 1
+        new_msg = msg + 1
+        dummy_neighbor = [index, target_id, target_pid]
+
+        if Enum.member?(previous_level, dummy_neighbor) == true do
+          IO.inspect("next hop found the target")
+          TAPNODE.sendDirectMessage(target_pid, new_msg)
+        else
+          # get closests neighbor
+          iInList =
+            Enum.any?(previous_level, fn elem ->
+              n_i = Enum.at(elem, 0)
+              n_i == index
+            end)
+
+          if iInList == true do
+            neighbor =
+              Enum.find(previous_level, fn elem ->
+                n_i = Enum.at(elem, 0)
+                n_i == index
+              end)
+
+            # get close item and route there
+            next_neighbor_pid = Enum.at(neighbor, 2)
+
+            if(next_neighbor_pid != self()) do
+              nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+            else
+              # need to find another neighbor that isn't me
+            end
+          else
+            # no i just take first one from row
+            neighbor = Enum.at(previous_level, 0)
+            next_neighbor_pid = Enum.at(neighbor, 2)
+
+            if(next_neighbor_pid != self()) do
+              nextHop(next_neighbor_pid, target_id, target_pid, n, msg)
+            else
+              # need to find another neighbor that isn't me
+            end
+          end
+        end
+      end
     end
   end
 
@@ -672,5 +831,14 @@ arguments = System.argv()
 numNodes = String.to_integer(Enum.at(arguments, 0))
 numRequests = String.to_integer(Enum.at(arguments, 1))
 
+# Starting the dynamic Server
+args = [numNodes, numRequests]
+{:ok, _pid} = GLOBALSUP.start_link(args)
+
+GLOBALSUP.start_child(numNodes, numRequests)
+
+# {_, mainproj_pid} = GenServer.start_link(MAINPROJ, :ok)
+# GenServer.cast(mainproj_pid, {:mainStart, numNodes, numRequests})
+
 # Pass the integers to Actor 1
-MAINPROJ.main(numNodes, numRequests)
+# MAINPROJ.main(numNodes, numRequests)
