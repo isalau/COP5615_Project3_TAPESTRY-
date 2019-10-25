@@ -59,7 +59,7 @@ defmodule MAINPROJ do
         label: "numberOfResponses #{numberOfResponses} not equal to numHeard"
       )
 
-      # keepAlive()
+      keepAlive()
     end
 
     new_state = {newmaxHops, numberOfResponses}
@@ -94,17 +94,17 @@ defmodule MAINPROJ do
     ################# CREATE OVERLAY NETWORK  ######################
     children = DynamicSupervisor.which_children(TAPESTRY)
 
-    # for x <- children do
-    #   {_, childPid, _, _} = x
-    #   TAPNODE.addToTapestry(childPid)
-    # end
-    #
-    # :timer.sleep(1000)
-    #
-    # for x <- children do
-    #   {_, childPid, _, _} = x
-    #   TAPNODE.printState(childPid)
-    # end
+    for x <- children do
+      {_, childPid, _, _} = x
+      TAPNODE.addToTapestry(childPid)
+    end
+
+    :timer.sleep(1000)
+
+    for x <- children do
+      {_, childPid, _, _} = x
+      TAPNODE.printState(childPid)
+    end
 
     for x <- children do
       {_, childPid, _, _} = x
@@ -207,7 +207,6 @@ defmodule TAPNODE do
   @impl true
   def handle_call({:receiveHello, neighbor_id}, from, state) do
     # _pid = Kernel.inspect(self())
-
     # _fid = Kernel.inspect(from_pid)
     # IO.inspect(state, label: "\n #{pid} Received Hello from #{fid}. \nMy old state")
     # IO.inspect(state, label: "\nReceived Hello from #{neighbor_id}. \nMy old state")
@@ -250,7 +249,6 @@ defmodule TAPNODE do
 
         # get close item and route there
         # check it make sure it's not you
-        # neighbor = Enum.at(level, 0)
         next_neighbor_id = Enum.at(neighbor, 1)
         next_neighbor_pid = Enum.at(neighbor, 2)
         new_j = j + 1
@@ -381,7 +379,8 @@ defmodule TAPNODE do
     # routeToObject(target_state, target_pid, state)
     # IO.inspect("sending message to main")
     # IO.inspect(MAINPROJ, label: "alive?")
-    GenServer.cast(MAINPROJ, {:getMaxHops, 3})
+    random_number = :rand.uniform(100)
+    GenServer.cast(MAINPROJ, {:getMaxHops, random_number})
 
     {:noreply, state}
   end
@@ -808,9 +807,3 @@ args = [numNodes, numRequests]
 {:ok, _pid} = GLOBALSUP.start_link(args)
 
 GLOBALSUP.start_child(numNodes, numRequests)
-
-# {_, mainproj_pid} = GenServer.start_link(MAINPROJ, :ok)
-# GenServer.cast(mainproj_pid, {:mainStart, numNodes, numRequests})
-
-# Pass the integers to Actor 1
-# MAINPROJ.main(numNodes, numRequests)
